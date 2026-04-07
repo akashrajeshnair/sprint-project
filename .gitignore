@@ -76,6 +76,7 @@ Thumbs.db
 .env
 *.env
 .env.*
+*env
 
 # Database files (ignore runtime DB files, keep schema.sql in repo)
 *.db
