@@ -56,3 +56,28 @@ if llm_rows:
     col3.metric("Tokens Used", f"{selected['tokens_used']:,}")
 else:
     st.info("No LLM records found. Add one below.")
+
+st.divider()
+st.subheader("Add New LLM")
+with st.form("add_llm_form"):
+    model_name = st.text_input("Model Name", placeholder="gpt-4o-mini")
+    total_tokens = st.number_input("Total Tokens", min_value=0, step=1, value=1)
+    tokens_used = st.number_input("Tokens Used", min_value=0, step=1, value=0)
+    submitted = st.form_submit_button("Add LLM")
+
+if submitted:
+    if not model_name.strip():
+        st.warning("Model name is required.")
+    elif tokens_used > total_tokens:
+        st.warning("Tokens Used cannot be greater than Total Tokens.")
+    else:
+        try:
+            result = create_llm(model_name.strip(), int(total_tokens), int(tokens_used))
+            if result.status_code == 201:
+                st.success("LLM added successfully.")
+                st.rerun()
+            else:
+                detail = result.json().get("detail", result.text)
+                st.error(f"Failed to add LLM: {detail}")
+        except requests.RequestException as exc:
+            st.error(f"Could not connect to API: {exc}")
