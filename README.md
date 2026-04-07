@@ -1,3 +1,3 @@
-# capgemini-sprint-project
+# sprint-project
 
 topic is not yet assigned.
