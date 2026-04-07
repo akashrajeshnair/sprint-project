@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict U1OuePGcO4fMOobiFicOfcm1WqALGhnLI5CM3rapQewaMG3IjUdZfxQ22bC7bRt
+\restrict JCjNcC5z7PYQbm3DcjlFMO0VhnQkhp2Jo3jZfz5f0iYSI5ViALPDlaCTp8sp7dm
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -21,6 +21,38 @@ SET row_security = off;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: models; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.models (
+    id integer NOT NULL,
+    model_name character varying(255) NOT NULL,
+    total_tokens integer,
+    tokens_used integer
+);
+
+
+--
+-- Name: models_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.models_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: models_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.models_id_seq OWNED BY public.models.id;
+
 
 --
 -- Name: users; Type: TABLE; Schema: public; Owner: -
@@ -57,10 +89,28 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
+-- Name: models id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.models ALTER COLUMN id SET DEFAULT nextval('public.models_id_seq'::regclass);
+
+
+--
 -- Name: users id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Data for Name: models; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.models (id, model_name, total_tokens, tokens_used) FROM stdin;
+1	gpt-oss	3000	500
+2	gemma-3b	10000	250
+3	mistral-7b	7500	30
+\.
 
 
 --
@@ -77,10 +127,25 @@ COPY public.users (id, username, email, password, created_at, updated_at) FROM s
 
 
 --
+-- Name: models_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.models_id_seq', 3, true);
+
+
+--
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.users_id_seq', 5, true);
+
+
+--
+-- Name: models models_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.models
+    ADD CONSTRAINT models_pkey PRIMARY KEY (id);
 
 
 --
@@ -111,5 +176,5 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict U1OuePGcO4fMOobiFicOfcm1WqALGhnLI5CM3rapQewaMG3IjUdZfxQ22bC7bRt
+\unrestrict JCjNcC5z7PYQbm3DcjlFMO0VhnQkhp2Jo3jZfz5f0iYSI5ViALPDlaCTp8sp7dm
 
