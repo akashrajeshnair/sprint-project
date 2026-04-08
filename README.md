@@ -27,7 +27,7 @@ pip install -r requirements.txt
 Use `.env` (or `.env.example`) with:
 
 ```env
-DATABASE_URL=postgresql+psycopg2://postgres:admin@localhost:5432/capgemini_sprint
+DATABASE_URL=postgresql+psycopg2://postgres:admin@localhost:5432/education_database
 API_BASE_URL=http://127.0.0.1:8000
 ```
 
