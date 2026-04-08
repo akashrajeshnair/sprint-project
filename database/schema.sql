@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict JCjNcC5z7PYQbm3DcjlFMO0VhnQkhp2Jo3jZfz5f0iYSI5ViALPDlaCTp8sp7dm
+\restrict KjkBUYwhr7V472cXx7GsrnFq2RhhJH6CmmJxkNMbAqsKU1d5QslHOHcw3Socj8h
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -18,6 +18,16 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+ALTER TABLE ONLY public.users DROP CONSTRAINT users_username_key;
+ALTER TABLE ONLY public.users DROP CONSTRAINT users_pkey;
+ALTER TABLE ONLY public.users DROP CONSTRAINT users_email_key;
+ALTER TABLE ONLY public.models DROP CONSTRAINT models_pkey;
+ALTER TABLE public.users ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE public.models ALTER COLUMN id DROP DEFAULT;
+DROP SEQUENCE public.users_id_seq;
+DROP TABLE public.users;
+DROP SEQUENCE public.models_id_seq;
+DROP TABLE public.models;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -110,6 +120,8 @@ COPY public.models (id, model_name, total_tokens, tokens_used) FROM stdin;
 1	gpt-oss	3000	500
 2	gemma-3b	10000	250
 3	mistral-7b	7500	30
+4	sarvam-9b	100000	20000
+5	gpt-5	10000	2000
 \.
 
 
@@ -130,7 +142,7 @@ COPY public.users (id, username, email, password, created_at, updated_at) FROM s
 -- Name: models_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.models_id_seq', 3, true);
+SELECT pg_catalog.setval('public.models_id_seq', 5, true);
 
 
 --
@@ -176,5 +188,5 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict JCjNcC5z7PYQbm3DcjlFMO0VhnQkhp2Jo3jZfz5f0iYSI5ViALPDlaCTp8sp7dm
+\unrestrict KjkBUYwhr7V472cXx7GsrnFq2RhhJH6CmmJxkNMbAqsKU1d5QslHOHcw3Socj8h
 
