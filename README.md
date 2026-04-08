@@ -53,5 +53,17 @@ python -m streamlit run streamlit_app.py
 ## Dump Database
 
 ```bash
-pg_dump -p 5432 -d capgemini_sprint --no-owner --no-acl --clean --if-exists --schema-only -f database/schema.sql
+pg_dump -p 5432 -d education_database --no-owner --no-acl --clean --if-exists --schema-only -f database/schema.sql
+```
+
+## Import Database
+
+Enter postgreSQL and create database if not created.
+
+```sql
+CREATE DATABASE education_database;
+```
+
+```bash
+psql -h localhost -p 5432 -U postgres -W -d education_database -f database/schema.sql
 ```
