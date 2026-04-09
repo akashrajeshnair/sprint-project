@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
@@ -7,7 +8,9 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
 
@@ -29,6 +32,7 @@ ROLE_MAP = {"student": "students", "teacher": "teachers"}
 class RagService:
     def __init__(self) -> None:
         self._embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+        self._general_llm: ChatOpenAI | None = None
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
             chunk_overlap=CHUNK_OVERLAP,
@@ -162,16 +166,25 @@ class RagService:
         if docs:
             answer = self._compose_answer_from_docs(docs=docs, response_mode=response_mode)
         else:
+            llm_answer = self._llm_general_response(
+                question=prompt,
+                role=normalized_role,
+                learner_level=learner_level,
+                response_mode=response_mode,
+            )
             if use_rag_context:
-                general = self._general_response(
-                    question=prompt,
-                    role=normalized_role,
-                    learner_level=learner_level,
-                    response_mode=response_mode,
-                )
-                answer = f"I couldn't find matching document context. Here's a general answer:\n\n{general}"
+                if llm_answer:
+                    answer = f"I couldn't find matching document context. Here's a general answer:\n\n{llm_answer}"
+                else:
+                    general = self._general_response(
+                        question=prompt,
+                        role=normalized_role,
+                        learner_level=learner_level,
+                        response_mode=response_mode,
+                    )
+                    answer = f"I couldn't find matching document context. Here's a general answer:\n\n{general}"
             else:
-                answer = self._general_response(
+                answer = llm_answer or self._general_response(
                     question=prompt,
                     role=normalized_role,
                     learner_level=learner_level,
@@ -335,6 +348,60 @@ class RagService:
             "4. Summarize key takeaways and common mistakes.\n"
             "5. End with a quick self-check question to reinforce learning."
         )
+
+    def _llm_general_response(
+        self,
+        question: str,
+        role: str,
+        learner_level: str,
+        response_mode: str,
+    ) -> str | None:
+        llm = self._get_general_llm()
+        if llm is None:
+            return None
+
+        style = "brief" if (response_mode or "").strip().lower() == "short" else "step-by-step"
+        system_prompt = (
+            "You are a helpful education assistant. "
+            "Answer clearly and safely. Avoid markdown tables unless needed. "
+            "Keep examples practical and correct."
+        )
+        user_prompt = (
+            f"Role: {role}\n"
+            f"Learner level: {learner_level}\n"
+            f"Style: {style}\n"
+            f"Question: {question}\n"
+            "Provide a direct, understandable answer."
+        )
+
+        try:
+            result = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
+        except Exception:
+            return None
+
+        content = getattr(result, "content", "")
+        if isinstance(content, str):
+            text = content.strip()
+            return text or None
+        if isinstance(content, list):
+            merged = " ".join(str(part) for part in content).strip()
+            return merged or None
+        return None
+
+    def _get_general_llm(self) -> ChatOpenAI | None:
+        if self._general_llm is not None:
+            return self._general_llm
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return None
+
+        model_name = os.getenv("GENERAL_LLM_MODEL", "gpt-4o-mini")
+        try:
+            self._general_llm = ChatOpenAI(model=model_name, temperature=0.2, api_key=api_key)
+        except Exception:
+            return None
+        return self._general_llm
 
     def _prepare_dirs(self) -> None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)

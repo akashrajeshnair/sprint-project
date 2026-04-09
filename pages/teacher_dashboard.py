@@ -15,7 +15,7 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("💬 Chatbot", use_container_width=True):
-        st.info("Chatbot page/link will be added later by teammate.")
+        st.switch_page("pages/chatbot.py")
 
 with col2:
     if st.button("👤 My Profile", use_container_width=True):

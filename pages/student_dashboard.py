@@ -17,7 +17,7 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("💬 Chatbot"):
-        st.info("Chatbot integration will be added by teammate")
+        st.switch_page("pages/chatbot.py")
 
 with col2:
     if st.button("👤 Profile"):
