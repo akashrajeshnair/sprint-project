@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 try:
 	from database import Base
 except ModuleNotFoundError:
-	from backend.database import Base
+	from database import Base
 
 
 class Message(Base):
