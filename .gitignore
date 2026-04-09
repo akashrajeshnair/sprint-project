@@ -99,3 +99,4 @@ dist/
 
 # local settings
 local_settings.py
+chroma_db
