@@ -1,4 +1,7 @@
-from rag_service import service
+try:
+    from rag import service
+except ModuleNotFoundError:
+    from backend.services.rag import service
 
 
 if __name__ == "__main__":

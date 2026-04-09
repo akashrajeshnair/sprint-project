@@ -4,4 +4,14 @@ sqlalchemy==2.0.40
 psycopg2-binary==2.9.10
 python-dotenv==1.1.0
 streamlit==1.44.1
-requests==2.32.3
+requests==2.33
+chardet==5.2.0
+langchain==0.3.27
+langchain-chroma==0.2.5
+langchain-community==0.3.29
+pypdf==6.9.2
+langchain-google-genai==2.1.10
+langchain-openai==0.3.35
+langchain-huggingface==0.3.1
+langchain-text-splitters==0.3.10
+sentence-transformers==5.1.0
