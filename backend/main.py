@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 from __future__ import annotations
 
 import os
@@ -8,9 +9,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+=======
+# from fastapi import FastAPI
+# from backend.routes.auth import router as auth_router
+
+# app = FastAPI()
+
+# app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+
+# from backend.routes.users import router as users_router
+
+# app.include_router(users_router, tags=["Users"])
+print("🚀 MAIN FILE RUNNING")
+from fastapi import FastAPI
+from backend.routes.auth import router as auth_router
+from backend.routes.users import router as users_router   # ✅ MOVE UP
+>>>>>>> Stashed changes
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
+<<<<<<< Updated upstream
 try:
 	# Works when running from `backend/` (e.g., `python main.py`)
 	from services.rag import service as rag_service
@@ -60,3 +78,7 @@ if __name__ == "__main__":
 	port = int(os.getenv("PORT", "8000"))
 	reload_enabled = os.getenv("RELOAD", "true").lower() in {"1", "true", "yes", "on"}
 	uvicorn.run("main:app", host=host, port=port, reload=reload_enabled)
+=======
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(users_router, tags=["Users"])
+>>>>>>> Stashed changes
