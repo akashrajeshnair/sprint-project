@@ -18,7 +18,7 @@ try:
 	from models import sessions as _sessions_model  # noqa: F401
 	from models import users as _users_model  # noqa: F401
 	from routes.chat import router as chat_router
-  from routes.auth import router as auth_router
+	from routes.auth import router as auth_router
 except ModuleNotFoundError as exc:
 	if exc.name not in {"routes", "models", "database", "schemas", "services"}:
 		raise
@@ -28,6 +28,7 @@ except ModuleNotFoundError as exc:
 	from backend.models import sessions as _sessions_model  # noqa: F401
 	from backend.models import users as _users_model  # noqa: F401
 	from backend.routes.chat import router as chat_router
+	from backend.routes.auth import router as auth_router
 
 
 @asynccontextmanager
