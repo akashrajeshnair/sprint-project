@@ -18,6 +18,7 @@ try:
 	from models import sessions as _sessions_model  # noqa: F401
 	from models import users as _users_model  # noqa: F401
 	from routes.chat import router as chat_router
+  from routes.auth import router as auth_router
 except ModuleNotFoundError as exc:
 	if exc.name not in {"routes", "models", "database", "schemas", "services"}:
 		raise
@@ -49,6 +50,7 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(chat_router)
 
 
