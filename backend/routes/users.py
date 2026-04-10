@@ -366,6 +366,7 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models.users import User
+from models.student_details import StudentProfile
 
 router = APIRouter()
 
@@ -374,6 +375,12 @@ class CreateUserRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
+    role: str
+    subject: str | None = None
+
+class UpdateUserRequest(BaseModel):
+    name: str
+    email: EmailStr
     role: str
     subject: str | None = None
 
@@ -427,6 +434,7 @@ def get_teachers(db: Session = Depends(get_db)):
 # ============================
 # ✅ GET USER BY ID (FIXED ROUTE)
 # ============================
+# ✅ GET USER BY ID (UPDATED ROUTE)
 @router.get("/users/by-id/{user_id}")
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.user_id == user_id).first()
@@ -434,14 +442,62 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # 👇 ADD THIS LINE (fetch student profile)
+    student_profile = db.query(StudentProfile).filter(
+        StudentProfile.user_id == user_id
+    ).first()
+
     return {
         "user_id": user.user_id,
         "name": user.name,
         "email": user.email,
         "role": user.role,
         "subject": user.subject,
+
+        # 👇 ADD THESE FIELDS
+        "grade_level": student_profile.grade_level if student_profile else None,
+        "learning_style": student_profile.learning_style if student_profile else None,
+        "subjects_enrolled": student_profile.subjects_enrolled if student_profile else [],
+        "xp_points": student_profile.xp_points if student_profile else 0,
+        "last_active_at": str(student_profile.last_active_at) if student_profile else None,
     }
 
+@router.get("/student-progress")
+def get_student_progress(db: Session = Depends(get_db)):
+    results = (
+        db.query(StudentProfile, User)
+        .join(User, StudentProfile.user_id == User.user_id)
+        .filter(User.role == "student")
+        .all()
+    )
+
+    return [
+        {
+            "user_id": profile.user_id,
+            "name": user.name,
+            "grade_level": profile.grade_level,
+            "learning_style": profile.learning_style,
+            "subjects_enrolled": profile.subjects_enrolled,
+            "xp_points": profile.xp_points,
+            "last_active_at": profile.last_active_at.isoformat() if profile.last_active_at else None,
+        }
+        for profile, user in results
+    ]
+
+@router.get("/users")
+def get_all_users(db: Session = Depends(get_db)):
+    users = db.query(User).order_by(User.user_id.asc()).all()
+
+    return [
+        {
+            "user_id": u.user_id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "subject": u.subject,
+        }
+        for u in users
+    ]
 
 # ============================
 # ✅ CREATE USER
@@ -482,3 +538,64 @@ def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
         "role": new_user.role,
         "subject": new_user.subject,
     }
+
+@router.put("/users/{user_id}")
+def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    role = payload.role.lower().strip()
+
+    if role not in ["student", "teacher", "admin"]:
+        raise HTTPException(status_code=400, detail="Role must be student, teacher, or admin")
+
+    if role == "teacher" and not payload.subject:
+        raise HTTPException(status_code=400, detail="Subject is required for teacher")
+
+    if role in ["student", "admin"]:
+        subject_value = None
+    else:
+        subject_value = payload.subject
+
+    existing_email_user = (
+        db.query(User)
+        .filter(User.email == payload.email, User.user_id != user_id)
+        .first()
+    )
+    if existing_email_user:
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    user.name = payload.name
+    user.email = payload.email
+    user.role = role
+    user.subject = subject_value
+
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "message": "User updated successfully",
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "subject": user.subject,
+    }
+
+
+# @router.delete("/users/{user_id}")
+# def delete_user(user_id: int, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.user_id == user_id).first()
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
+
+#     if user.role == "admin":
+#         raise HTTPException(status_code=400, detail="Admin users cannot be deleted")
+
+#     db.delete(user)
+#     db.commit()
+
+#     return {"message": "User deleted successfully"}
