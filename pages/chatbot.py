@@ -9,6 +9,13 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 ALLOWED_ROLES = {"student", "teacher"}
 
 
+def _candidate_api_bases() -> list[str]:
+    bases = [API_BASE_URL.rstrip("/")]
+    if ":8000" in bases[0]:
+        bases.append(bases[0].replace(":8000", ":8010"))
+    return list(dict.fromkeys(bases))
+
+
 def _auth_headers() -> dict[str, str]:
     token = st.session_state.get("access_token")
     if not token:
@@ -83,6 +90,27 @@ def _fetch_user_sessions(user_id: int) -> list[dict]:
     )
     response.raise_for_status()
     return response.json() or []
+
+
+def _delete_chat_session(session_id: int, user_id: int) -> None:
+    last_error: Exception | None = None
+    for base_url in _candidate_api_bases():
+        try:
+            response = requests.delete(
+                f"{base_url}/api/sessions/{int(session_id)}",
+                params={"user_id": int(user_id)},
+                headers=_auth_headers(),
+                timeout=15,
+            )
+            if response.status_code == 405:
+                continue
+            response.raise_for_status()
+            return
+        except Exception as exc:
+            last_error = exc
+
+    if last_error is not None:
+        raise last_error
 
 
 def _format_session_label(session_row: dict) -> str:
@@ -162,6 +190,16 @@ with st.sidebar:
             st.session_state.chat_messages = _load_chat_logs(selected_session_id)
             st.session_state.chat_owner_role = role
             st.rerun()
+
+        if st.button("🗑 Delete Selected Session", use_container_width=True):
+            try:
+                _delete_chat_session(selected_session_id, int(user_id))
+                if st.session_state.get("chat_session_id") == selected_session_id:
+                    _reset_chat_session()
+                st.success("Session deleted.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not delete session: {exc}")
     else:
         st.caption("No previous sessions found for this user yet.")
 

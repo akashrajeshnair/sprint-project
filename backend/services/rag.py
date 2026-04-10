@@ -4,6 +4,7 @@ import os
 import shutil
 from pathlib import Path
 
+from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -18,6 +19,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 CHROMA_DIR = BASE_DIR / "chroma_db"
 DOCUMENTS_DIR = BASE_DIR / "documents"
+PROJECT_ENV_PATH = BASE_DIR.parent / ".env"
+
+# Load environment variables from project root so backend picks up API keys.
+load_dotenv(PROJECT_ENV_PATH)
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_TOP_K = 4
@@ -123,6 +128,31 @@ class RagService:
                 "sources": [],
                 "context_used": False,
                 "tool_calls_used": [],
+            }
+
+        # In non-RAG mode, bypass retrieval entirely and send the raw question
+        # directly to the configured LLM API.
+        if not use_rag_context:
+            direct_answer = self._llm_direct_response(
+                question=prompt,
+                role=normalized_role,
+                learner_level=learner_level,
+                response_mode=response_mode,
+            )
+            if not direct_answer:
+                direct_answer = (
+                    "Direct LLM mode is enabled, but no LLM API key is available. "
+                    "Set GROQ_API_KEY (or OPENAI_API_KEY) and try again."
+                )
+            return {
+                "answer": direct_answer,
+                "sources": [],
+                "context_used": False,
+                "selected_file": selected_file,
+                "use_rag_context": use_rag_context,
+                "tool_calls_used": [],
+                "agent_steps_run": 0,
+                "agent_loop_used": False,
             }
 
         docs: list[Document] = []
@@ -388,17 +418,134 @@ class RagService:
             return merged or None
         return None
 
+    def _llm_direct_response(
+        self,
+        question: str,
+        role: str,
+        learner_level: str,
+        response_mode: str,
+    ) -> str | None:
+        llm = self._get_general_llm()
+        if llm is None:
+            return None
+
+        level = (learner_level or "beginner").strip().lower()
+        if level not in {"beginner", "intermediate", "advanced"}:
+            level = "beginner"
+
+        mode = (response_mode or "step-by-step").strip().lower()
+        if mode not in {"step-by-step", "short"}:
+            mode = "step-by-step"
+
+        if mode == "short":
+            if level == "beginner":
+                length_rule = "Keep the response around 70-110 words with very simple language."
+                complexity_rule = "Use one clear concept and one tiny example."
+                max_tokens = 180
+                max_words = 130
+            elif level == "intermediate":
+                length_rule = "Keep the response around 60-90 words."
+                complexity_rule = "Use concise explanation with one practical detail."
+                max_tokens = 150
+                max_words = 110
+            else:
+                length_rule = "Keep the response tight: around 40-70 words maximum."
+                complexity_rule = "Use precise technical wording and avoid extra explanation."
+                max_tokens = 120
+                max_words = 85
+        else:
+            if level == "beginner":
+                length_rule = "Provide a fuller explanation in about 180-260 words."
+                complexity_rule = "Use simple language, include 4-6 numbered steps, and one clear example."
+                max_tokens = 420
+                max_words = 300
+            elif level == "intermediate":
+                length_rule = "Provide a medium explanation in about 120-180 words."
+                complexity_rule = "Use 3-5 numbered steps, practical terminology, and one concise example."
+                max_tokens = 320
+                max_words = 220
+            else:
+                length_rule = "Keep it compact even in step-by-step mode: about 80-120 words."
+                complexity_rule = (
+                    "Use 2-4 concise numbered steps with higher-level technical clarity, "
+                    "and avoid long explanations."
+                )
+                max_tokens = 220
+                max_words = 150
+
+        system_prompt = (
+            "You are a helpful education assistant. "
+            "Follow format, length, and complexity instructions exactly. "
+            "Do not include retrieval sources or mention RAG. "
+            "Do not use markdown headings, markdown tables, or decorative formatting."
+        )
+        user_prompt = (
+            f"Role: {role}\n"
+            f"Learner level: {level}\n"
+            f"Response mode: {mode}\n"
+            f"Length rule: {length_rule}\n"
+            f"Complexity rule: {complexity_rule}\n"
+            "Output rules:\n"
+            "- If response mode is step-by-step, return numbered points.\n"
+            "- If response mode is short, return one compact paragraph.\n"
+            "- Keep the answer directly focused on the question.\n"
+            "- Keep within the requested size limits.\n"
+            f"Question: {question}"
+        )
+
+        try:
+            llm_client = llm
+            try:
+                llm_client = llm.bind(max_tokens=max_tokens)
+            except Exception:
+                llm_client = llm
+            result = llm_client.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
+        except Exception:
+            return None
+
+        content = getattr(result, "content", "")
+        if isinstance(content, str):
+            text = " ".join(content.strip().split())
+            if len(text.split()) > max_words:
+                text = " ".join(text.split()[:max_words]).rstrip(" ,.;:") + "."
+            return text or None
+        if isinstance(content, list):
+            merged = " ".join(str(part) for part in content).strip()
+            merged = " ".join(merged.split())
+            if len(merged.split()) > max_words:
+                merged = " ".join(merged.split()[:max_words]).rstrip(" ,.;:") + "."
+            return merged or None
+        return None
+
     def _get_general_llm(self) -> ChatOpenAI | None:
         if self._general_llm is not None:
             return self._general_llm
 
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        if groq_api_key:
+            model_name = os.getenv(
+                "GROQ_LLM_MODEL",
+                os.getenv("GENERAL_LLM_MODEL", "llama-3.3-70b-versatile"),
+            )
+            base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+            try:
+                self._general_llm = ChatOpenAI(
+                    model=model_name,
+                    temperature=0.2,
+                    api_key=groq_api_key,
+                    base_url=base_url,
+                )
+                return self._general_llm
+            except Exception:
+                self._general_llm = None
+
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
             return None
 
         model_name = os.getenv("GENERAL_LLM_MODEL", "gpt-4o-mini")
         try:
-            self._general_llm = ChatOpenAI(model=model_name, temperature=0.2, api_key=api_key)
+            self._general_llm = ChatOpenAI(model=model_name, temperature=0.2, api_key=openai_api_key)
         except Exception:
             return None
         return self._general_llm
