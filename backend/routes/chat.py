@@ -91,6 +91,28 @@ def get_session(session_id: int, db: Session = Depends(get_db)) -> SessionRead:
     return row
 
 
+@router.delete("/sessions/{session_id}")
+def delete_session(
+    session_id: int,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> dict:
+    query = db.query(ChatSession).filter(ChatSession.session_id == session_id)
+    if user_id is not None:
+        query = query.filter(ChatSession.user_id == user_id)
+
+    row = query.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    db.delete(row)
+    db.commit()
+    return {
+        "ok": True,
+        "deleted_session_id": session_id,
+    }
+
+
 @router.patch("/sessions/{session_id}", response_model=SessionRead)
 def update_session(session_id: int, payload: SessionUpdate, db: Session = Depends(get_db)) -> SessionRead:
     row = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()

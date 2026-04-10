@@ -456,6 +456,28 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         "last_active_at": str(student_profile.last_active_at) if student_profile else None,
     }
 
+@router.get("/student-progress")
+def get_student_progress(db: Session = Depends(get_db)):
+    results = (
+        db.query(StudentProfile, User)
+        .join(User, StudentProfile.user_id == User.user_id)
+        .filter(User.role == "student")
+        .all()
+    )
+
+    return [
+        {
+            "user_id": profile.user_id,
+            "name": user.name,
+            "grade_level": profile.grade_level,
+            "learning_style": profile.learning_style,
+            "subjects_enrolled": profile.subjects_enrolled,
+            "xp_points": profile.xp_points,
+            "last_active_at": profile.last_active_at.isoformat() if profile.last_active_at else None,
+        }
+        for profile, user in results
+    ]
+
 
 # ============================
 # ✅ CREATE USER

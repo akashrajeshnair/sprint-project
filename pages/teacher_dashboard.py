@@ -11,7 +11,7 @@ st.write(f"Welcome, Teacher | User ID: {st.session_state.user_id}")
 
 st.divider()
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     if st.button("💬 Chatbot", use_container_width=True):
@@ -26,7 +26,8 @@ with col3:
         st.session_state.clear()
         st.switch_page("streamlit_app.py")
 
-st.divider()
+with col4:
+    if st.button("📊 Student Progress", use_container_width=True):
+        st.switch_page("pages/teacher_student_progress.py")
 
-st.subheader("Dashboard")
-st.write("Teacher features will be added here.")
+st.divider()
