@@ -366,6 +366,7 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models.users import User
+from models.student_details import StudentProfile
 
 router = APIRouter()
 
@@ -427,6 +428,7 @@ def get_teachers(db: Session = Depends(get_db)):
 # ============================
 # ✅ GET USER BY ID (FIXED ROUTE)
 # ============================
+# ✅ GET USER BY ID (UPDATED ROUTE)
 @router.get("/users/by-id/{user_id}")
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.user_id == user_id).first()
@@ -434,12 +436,24 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # 👇 ADD THIS LINE (fetch student profile)
+    student_profile = db.query(StudentProfile).filter(
+        StudentProfile.user_id == user_id
+    ).first()
+
     return {
         "user_id": user.user_id,
         "name": user.name,
         "email": user.email,
         "role": user.role,
         "subject": user.subject,
+
+        # 👇 ADD THESE FIELDS
+        "grade_level": student_profile.grade_level if student_profile else None,
+        "learning_style": student_profile.learning_style if student_profile else None,
+        "subjects_enrolled": student_profile.subjects_enrolled if student_profile else [],
+        "xp_points": student_profile.xp_points if student_profile else 0,
+        "last_active_at": str(student_profile.last_active_at) if student_profile else None,
     }
 
 

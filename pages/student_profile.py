@@ -27,14 +27,44 @@ try:
     if response.status_code == 200:
         user = response.json()
 
-        st.subheader("Basic Information")
+        # ---------------- BASIC INFO ----------------
+        st.subheader("📌 Basic Information")
 
-        st.write(f"**Name:** {user.get('name', 'N/A')}")
-        st.write(f"**Email:** {user.get('email', 'N/A')}")
-        st.write(f"**Role:** {user.get('role', 'N/A')}")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Name:** {user.get('name', 'N/A')}")
+            st.write(f"**Email:** {user.get('email', 'N/A')}")
 
-        # Optional fields
-        st.write(f"**Subject:** {user.get('subject', 'N/A')}")
+        with col2:
+            st.write(f"**Role:** {user.get('role', 'N/A')}")
+            st.write(f"**Subject:** {user.get('subject', 'N/A')}")
+
+        st.divider()
+
+        # ---------------- STUDENT PROFILE ----------------
+        st.subheader("🎓 Academic Details")
+
+        col3, col4 = st.columns(2)
+        with col3:
+            st.write(f"**Grade Level:** {user.get('grade_level', 'N/A')}")
+            st.write(f"**Learning Style:** {user.get('learning_style', 'N/A')}")
+
+        with col4:
+            st.write(f"**XP Points:** {user.get('xp_points', 0)}")
+            st.write(f"**Last Active:** {user.get('last_active_at', 'N/A')}")
+
+        st.divider()
+
+        # ---------------- SUBJECTS ----------------
+        st.subheader("📚 Subjects Enrolled")
+
+        subjects = user.get("subjects_enrolled", [])
+
+        if isinstance(subjects, list) and subjects:
+            for sub in subjects:
+                st.markdown(f"- {sub}")
+        else:
+            st.write("N/A")
 
     else:
         st.error("Failed to fetch profile details")
