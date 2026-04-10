@@ -12,8 +12,31 @@ ALLOWED_ROLES = {"student", "teacher"}
 def _candidate_api_bases() -> list[str]:
     bases = [API_BASE_URL.rstrip("/")]
     if ":8000" in bases[0]:
-        bases.append(bases[0].replace(":8000", ":8010"))
+        bases = [bases[0].replace(":8000", ":8010"), bases[0]]
     return list(dict.fromkeys(bases))
+
+
+def _api_request(method: str, path: str, *, params: dict | None = None, json_body: dict | None = None, timeout: int = 15):
+    last_error: Exception | None = None
+    for base_url in _candidate_api_bases():
+        try:
+            response = requests.request(
+                method=method,
+                url=f"{base_url}{path}",
+                params=params,
+                json=json_body,
+                headers=_auth_headers(),
+                timeout=timeout,
+            )
+            if response.status_code == 405:
+                continue
+            return response
+        except Exception as exc:
+            last_error = exc
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Unable to reach API server")
 
 
 def _auth_headers() -> dict[str, str]:
@@ -38,12 +61,7 @@ def _ensure_chat_session() -> int | None:
         "difficulty_level": "beginner",
     }
 
-    response = requests.post(
-        f"{API_BASE_URL}/api/sessions",
-        json=payload,
-        headers=_auth_headers(),
-        timeout=15,
-    )
+    response = _api_request("POST", "/api/sessions", json_body=payload, timeout=15)
     response.raise_for_status()
 
     session_id = int(response.json()["session_id"])
@@ -59,11 +77,7 @@ def _reset_chat_session() -> None:
 
 
 def _load_chat_logs(session_id: int) -> list[dict]:
-    response = requests.get(
-        f"{API_BASE_URL}/api/sessions/{session_id}/messages",
-        headers=_auth_headers(),
-        timeout=15,
-    )
+    response = _api_request("GET", f"/api/sessions/{session_id}/messages", timeout=15)
     response.raise_for_status()
     rows = response.json() or []
     logs: list[dict] = []
@@ -82,12 +96,7 @@ def _load_chat_logs(session_id: int) -> list[dict]:
 
 
 def _fetch_user_sessions(user_id: int) -> list[dict]:
-    response = requests.get(
-        f"{API_BASE_URL}/api/sessions",
-        params={"user_id": int(user_id)},
-        headers=_auth_headers(),
-        timeout=15,
-    )
+    response = _api_request("GET", "/api/sessions", params={"user_id": int(user_id)}, timeout=15)
     response.raise_for_status()
     return response.json() or []
 
@@ -211,11 +220,11 @@ with st.sidebar:
         response_mode = st.selectbox("Response mode", options=["step-by-step", "short"], index=0)
         learner_level = st.selectbox("Learner level", options=["beginner", "intermediate", "advanced"], index=0)
     else:
-        use_rag_context = True
+        use_rag_context = st.toggle("Use RAG context", value=True, key="student_use_rag_context")
         top_k = 3
         response_mode = "step-by-step"
         learner_level = "beginner"
-        st.caption("Default chat settings are applied for students.")
+        st.caption("Turn off RAG to get a general non-RAG answer.")
 
 for msg in st.session_state.chat_messages:
     with st.chat_message(msg["role"]):
@@ -260,12 +269,7 @@ if prompt:
             "persist_messages": True,
         }
 
-        response = requests.post(
-            f"{API_BASE_URL}/api/chat/ask",
-            json=payload,
-            headers=_auth_headers(),
-            timeout=30,
-        )
+        response = _api_request("POST", "/api/chat/ask", json_body=payload, timeout=30)
 
         if response.status_code != 200:
             detail = "Chat request failed"

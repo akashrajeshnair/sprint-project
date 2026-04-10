@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import os
 import shutil
 from pathlib import Path
@@ -160,6 +161,12 @@ class RagService:
         bounded_steps = max(1, min(int(max_steps or 2), 3))
         current_question = prompt
 
+        if self._is_question_request(prompt):
+            qb_file = self._question_bank_file_for_role(normalized_role)
+            if qb_file:
+                selected_file = qb_file
+                current_question = f"{normalized_role} question bank questions dbms quiz practice questions"
+
         for step in range(1, bounded_steps + 1):
             if not use_rag_context:
                 break
@@ -194,7 +201,38 @@ class RagService:
                 current_question = self._refine_question_for_retry(prompt, step)
 
         if docs:
-            answer = self._compose_answer_from_docs(docs=docs, response_mode=response_mode)
+            rag_answer = self._select_relevant_rag_answer(
+                docs=docs,
+                question=prompt,
+                response_mode=response_mode,
+                question_request=self._is_question_request(prompt),
+            )
+            if rag_answer is not None:
+                answer = rag_answer
+            else:
+                llm_answer = self._llm_general_response(
+                    question=prompt,
+                    role=normalized_role,
+                    learner_level=learner_level,
+                    response_mode=response_mode,
+                )
+                if llm_answer:
+                    answer = (
+                        "no relevant chunks found in notes, falling back to general answer\n\n"
+                        f"{llm_answer}"
+                    )
+                else:
+                    general = self._general_response(
+                        question=prompt,
+                        role=normalized_role,
+                        learner_level=learner_level,
+                        response_mode=response_mode,
+                    )
+                    answer = (
+                        "no relevant chunks found in notes, falling back to general answer\n\n"
+                        f"{general}"
+                    )
+                docs = []
         else:
             llm_answer = self._llm_general_response(
                 question=prompt,
@@ -240,15 +278,100 @@ class RagService:
             "agent_loop_used": True,
         }
 
-    def _compose_answer_from_docs(self, docs: list[Document], response_mode: str) -> str:
-        clean_chunks = [doc.page_content.strip() for doc in docs if (doc.page_content or "").strip()]
-        if not clean_chunks:
-            return "I found context, but it was empty after cleanup."
+    def _select_relevant_rag_answer(
+        self,
+        docs: list[Document],
+        question: str,
+        response_mode: str,
+        question_request: bool = False,
+    ) -> str | None:
+        llm = self._get_general_llm()
+        clean_docs = [doc for doc in docs if (doc.page_content or "").strip()]
+        if not clean_docs or llm is None:
+            return None
+
+        chunk_lines = []
+        for idx, doc in enumerate(clean_docs, start=1):
+            source = " ".join(str(doc.metadata.get("source", "unknown")).split())
+            page = doc.metadata.get("page")
+            page_label = f"page {page}" if page is not None else "unknown page"
+            text = " ".join((doc.page_content or "").split())
+            if not text:
+                continue
+            chunk_lines.append(f"Chunk {idx} [{source}, {page_label}]: {text}")
+
+        if not chunk_lines:
+            return None
 
         mode = (response_mode or "step-by-step").strip().lower()
-        if mode == "short":
-            return clean_chunks[0]
-        return "\n\n".join(clean_chunks[: min(3, len(clean_chunks))])
+        if mode not in {"short", "step-by-step"}:
+            mode = "step-by-step"
+
+        system_prompt = (
+            "You answer using retrieved RAG chunks only. "
+            "You may combine the most relevant parts from multiple chunks and order them naturally. "
+            "Do not mention sources or chunk numbers in the final answer. "
+            "If the chunks are unrelated or do not answer the question, return NONE. "
+            + (
+                "If the user is asking for questions, return only the questions from the chunks, and do not include explanatory text."
+                if question_request
+                else ""
+            )
+        )
+        user_prompt = (
+            f"Question: {question}\n"
+            f"Response mode: {mode}\n"
+            "Use only the chunks below. If some chunks are irrelevant, ignore them completely. "
+            "If the chunks are not related enough to answer, return NONE. "
+            + (
+                "When the user asks for questions, extract only the question statements from the question-bank chunks. "
+                "Do not include explanations, answers, or extra content."
+                if question_request
+                else ""
+            )
+            + "\n\n"
+            + "\n".join(chunk_lines)
+        )
+
+        try:
+            result = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
+        except Exception:
+            return None
+
+        content = getattr(result, "content", "")
+        if isinstance(content, list):
+            content = " ".join(str(part) for part in content)
+
+        if not isinstance(content, str):
+            return None
+
+        raw_text = content.strip()
+        if not raw_text or raw_text.upper() == "NONE":
+            return None
+
+        return raw_text
+
+    def _is_question_request(self, prompt: str) -> bool:
+        text = (prompt or "").strip().lower()
+        if not text:
+            return False
+
+        markers = (
+            "give questions",
+            "generate questions",
+            "create questions",
+            "show questions",
+            "question bank",
+            "quiz questions",
+            "practice questions",
+        )
+        return any(marker in text for marker in markers)
+
+    def _question_bank_file_for_role(self, role: str) -> str | None:
+        normalized_role = (role or "student").strip().lower()
+        if normalized_role == "teacher":
+            return "db_qb_teacher.pdf"
+        return "db_qb_student.pdf"
 
     def _refine_question_for_retry(self, question: str, step: int) -> str:
         base = " ".join((question or "").split()).strip()
