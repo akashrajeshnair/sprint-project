@@ -300,6 +300,24 @@
 #         for t in teachers
 #     ]
 
+# <<<<<<< HEAD
+# =======
+# @router.get("/users/by-id/{user_id}")
+# def get_user(user_id: int, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.user_id == user_id).first()
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
+
+#     return {
+#         "user_id": user.user_id,
+#         "name": user.name,
+#         "email": user.email,
+#         "role": user.role,
+#         "subject": user.subject,
+# #     }
+
+# >>>>>>> 29d16df (Registration update)
 
 # # ✅ CREATE USER (MAIN FUNCTION)
 # @router.post("/users")
@@ -368,6 +386,9 @@ def get_db():
         db.close()
 
 
+# ============================
+# ✅ GET ALL STUDENTS
+# ============================
 @router.get("/students")
 def get_students(db: Session = Depends(get_db)):
     students = db.query(User).filter(User.role == "student").all()
@@ -384,6 +405,9 @@ def get_students(db: Session = Depends(get_db)):
     ]
 
 
+# ============================
+# ✅ GET ALL TEACHERS
+# ============================
 @router.get("/teachers")
 def get_teachers(db: Session = Depends(get_db)):
     teachers = db.query(User).filter(User.role == "teacher").all()
@@ -400,7 +424,10 @@ def get_teachers(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/users/{user_id}")
+# ============================
+# ✅ GET USER BY ID (FIXED ROUTE)
+# ============================
+@router.get("/users/by-id/{user_id}")
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.user_id == user_id).first()
 
@@ -416,6 +443,9 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     }
 
 
+# ============================
+# ✅ CREATE USER
+# ============================
 @router.post("/users")
 def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
     role = payload.role.lower().strip()
@@ -446,6 +476,7 @@ def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
 
     return {
         "message": "User created successfully",
+        "user_id": new_user.user_id,
         "name": new_user.name,
         "email": new_user.email,
         "role": new_user.role,
