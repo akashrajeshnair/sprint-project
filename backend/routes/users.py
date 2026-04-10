@@ -366,6 +366,7 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models.users import User
+from models.student_details import StudentProfile
 
 router = APIRouter()
 
@@ -441,6 +442,28 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         "role": user.role,
         "subject": user.subject,
     }
+
+@router.get("/student-progress")
+def get_student_progress(db: Session = Depends(get_db)):
+    results = (
+        db.query(StudentProfile, User)
+        .join(User, StudentProfile.user_id == User.user_id)
+        .filter(User.role == "student")
+        .all()
+    )
+
+    return [
+        {
+            "user_id": profile.user_id,
+            "name": user.name,
+            "grade_level": profile.grade_level,
+            "learning_style": profile.learning_style,
+            "subjects_enrolled": profile.subjects_enrolled,
+            "xp_points": profile.xp_points,
+            "last_active_at": profile.last_active_at.isoformat() if profile.last_active_at else None,
+        }
+        for profile, user in results
+    ]
 
 
 # ============================
