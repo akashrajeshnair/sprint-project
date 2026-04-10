@@ -30,7 +30,3 @@ with col3:
 
 st.divider()
 
-# --- DASHBOARD CONTENT (placeholder) ---
-st.subheader("📊 Student Overview")
-
-st.write("This is your dashboard. More features will be added soon.")
