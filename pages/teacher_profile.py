@@ -26,7 +26,7 @@ st.divider()
 
 try:
     response = requests.get(
-        f"{API_BASE_URL}/users/{st.session_state.user_id}",
+        f"{API_BASE_URL}/users/by-id/{st.session_state.user_id}",
         timeout=10
     )
 
