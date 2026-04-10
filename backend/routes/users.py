@@ -378,6 +378,12 @@ class CreateUserRequest(BaseModel):
     role: str
     subject: str | None = None
 
+class UpdateUserRequest(BaseModel):
+    name: str
+    email: EmailStr
+    role: str
+    subject: str | None = None
+
 
 def get_db():
     db = SessionLocal()
@@ -478,6 +484,20 @@ def get_student_progress(db: Session = Depends(get_db)):
         for profile, user in results
     ]
 
+@router.get("/users")
+def get_all_users(db: Session = Depends(get_db)):
+    users = db.query(User).order_by(User.user_id.asc()).all()
+
+    return [
+        {
+            "user_id": u.user_id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "subject": u.subject,
+        }
+        for u in users
+    ]
 
 # ============================
 # ✅ CREATE USER
@@ -518,3 +538,64 @@ def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
         "role": new_user.role,
         "subject": new_user.subject,
     }
+
+@router.put("/users/{user_id}")
+def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    role = payload.role.lower().strip()
+
+    if role not in ["student", "teacher", "admin"]:
+        raise HTTPException(status_code=400, detail="Role must be student, teacher, or admin")
+
+    if role == "teacher" and not payload.subject:
+        raise HTTPException(status_code=400, detail="Subject is required for teacher")
+
+    if role in ["student", "admin"]:
+        subject_value = None
+    else:
+        subject_value = payload.subject
+
+    existing_email_user = (
+        db.query(User)
+        .filter(User.email == payload.email, User.user_id != user_id)
+        .first()
+    )
+    if existing_email_user:
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    user.name = payload.name
+    user.email = payload.email
+    user.role = role
+    user.subject = subject_value
+
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "message": "User updated successfully",
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "subject": user.subject,
+    }
+
+
+# @router.delete("/users/{user_id}")
+# def delete_user(user_id: int, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.user_id == user_id).first()
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
+
+#     if user.role == "admin":
+#         raise HTTPException(status_code=400, detail="Admin users cannot be deleted")
+
+#     db.delete(user)
+#     db.commit()
+
+#     return {"message": "User deleted successfully"}
