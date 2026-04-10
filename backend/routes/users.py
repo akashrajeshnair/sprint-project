@@ -585,17 +585,17 @@ def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(
     }
 
 
-# @router.delete("/users/{user_id}")
-# def delete_user(user_id: int, db: Session = Depends(get_db)):
-#     user = db.query(User).filter(User.user_id == user_id).first()
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == user_id).first()
 
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-#     if user.role == "admin":
-#         raise HTTPException(status_code=400, detail="Admin users cannot be deleted")
+    if user.role == "admin":
+        raise HTTPException(status_code=400, detail="Admin users cannot be deleted")
 
-#     db.delete(user)
-#     db.commit()
+    db.delete(user)
+    db.commit()
 
-#     return {"message": "User deleted successfully"}
+    return {"message": "User deleted successfully"}
