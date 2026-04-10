@@ -121,7 +121,7 @@ async def lifespan(_: FastAPI):
     STATIC_DIR.mkdir(parents=True, exist_ok=True)
     backend_dir = Path(__file__).resolve().parent
     (backend_dir / "data").mkdir(parents=True, exist_ok=True)
-    rag_service.sync_documents_incremental()
+    # rag_service.sync_documents_incremental()
     yield
 
 
