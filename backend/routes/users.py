@@ -1,257 +1,376 @@
-# from fastapi import APIRouter, Depends, HTTPException
-# from sqlalchemy.orm import Session
+# # from fastapi import APIRouter, Depends, HTTPException
+# # from sqlalchemy.orm import Session
 
-# from backend.database import SessionLocal
-# from backend.models.users import User
+# # from backend.database import SessionLocal
+# # from backend.models.users import User
 
-# router = APIRouter()
-
-
-# def get_db():
-#     db = SessionLocal()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
+# # router = APIRouter()
 
 
-# @router.get("/users/{user_id}")
-# def get_user(user_id: int, db: Session = Depends(get_db)):
-#     user = db.query(User).filter(User.user_id == user_id).first()
-
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
-
-#     return {
-#         "user_id": user.user_id,
-#         "name": user.name,
-#         "email": user.email,
-#         "role": user.role,
-#         "subject": user.subject,
-#     }
-
-# from fastapi import APIRouter, Depends, HTTPException
-# from sqlalchemy.orm import Session
-
-# from backend.database import SessionLocal
-# from backend.models.users import User
-
-# router = APIRouter()
+# # def get_db():
+# #     db = SessionLocal()
+# #     try:
+# #         yield db
+# #     finally:
+# #         db.close()
 
 
-# def get_db():
-#     db = SessionLocal()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
+# # @router.get("/users/{user_id}")
+# # def get_user(user_id: int, db: Session = Depends(get_db)):
+# #     user = db.query(User).filter(User.user_id == user_id).first()
+
+# #     if not user:
+# #         raise HTTPException(status_code=404, detail="User not found")
+
+# #     return {
+# #         "user_id": user.user_id,
+# #         "name": user.name,
+# #         "email": user.email,
+# #         "role": user.role,
+# #         "subject": user.subject,
+# #     }
+
+# # from fastapi import APIRouter, Depends, HTTPException
+# # from sqlalchemy.orm import Session
+
+# # from backend.database import SessionLocal
+# # from backend.models.users import User
+
+# # router = APIRouter()
 
 
-# @router.get("/users/students")
-# def get_all_students(db: Session = Depends(get_db)):
-#     students = db.query(User).filter(User.role == "student").all()
-
-#     return [
-#         {
-#             "user_id": student.user_id,
-#             "name": student.name,
-#             "email": student.email,
-#             "role": student.role,
-#             "subject": student.subject,
-#         }
-#         for student in students
-#     ]
+# # def get_db():
+# #     db = SessionLocal()
+# #     try:
+# #         yield db
+# #     finally:
+# #         db.close()
 
 
-# @router.get("/users/{user_id}")
-# def get_user(user_id: int, db: Session = Depends(get_db)):
-#     user = db.query(User).filter(User.user_id == user_id).first()
+# # @router.get("/users/students")
+# # def get_all_students(db: Session = Depends(get_db)):
+# #     students = db.query(User).filter(User.role == "student").all()
 
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
-
-#     return {
-#         "user_id": user.user_id,
-#         "name": user.name,
-#         "email": user.email,
-#         "role": user.role,
-#         "subject": user.subject,
-#     }
-
-# from fastapi import APIRouter, Depends, HTTPException
-# from sqlalchemy.orm import Session
-# from backend.database import SessionLocal
-# from backend.models.users import User
-# from pydantic import BaseModel
-
-# router = APIRouter()
-
-# # ----------------------
-# # DB session dependency
-# # ----------------------
-# def get_db():
-#     db = SessionLocal()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
-
-# # ----------------------
-# # Pydantic response model
-# # ----------------------
-# class UserOut(BaseModel):
-#     user_id: int
-#     name: str
-#     email: str
-#     role: str
-#     subject: str
-
-#     class Config:
-#         orm_mode = True
-
-# # ----------------------
-# # 1️⃣ Get all students
-# # Route: /users/students
-# # ----------------------
-# @router.get("/students", response_model=list[UserOut])
-# def get_all_students(db: Session = Depends(get_db)):
-#     students = db.query(User).filter(User.role == "student").all()
-#     return students
-
-# # ----------------------
-# # 2️⃣ Get single user by ID (safe route)
-# # Route: /users/by-id/{user_id}
-# # ----------------------
-# @router.get("/by-id/{user_id}", response_model=UserOut)
-# def get_user(user_id: int, db: Session = Depends(get_db)):
-#     user = db.query(User).filter(User.user_id == user_id).first()
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     return user
-
-# from pydantic import BaseModel, EmailStr
-# from fastapi import APIRouter, Depends, HTTPException
-# from sqlalchemy.orm import Session
-
-# from backend.database import SessionLocal
-# from backend.models.users import User
-
-# router = APIRouter()
+# #     return [
+# #         {
+# #             "user_id": student.user_id,
+# #             "name": student.name,
+# #             "email": student.email,
+# #             "role": student.role,
+# #             "subject": student.subject,
+# #         }
+# #         for student in students
+# #     ]
 
 
-# class CreateUserRequest(BaseModel):
-#     name: str
-#     email: EmailStr
-#     password: str
-#     role: str
-#     subject: str | None = None
+# # @router.get("/users/{user_id}")
+# # def get_user(user_id: int, db: Session = Depends(get_db)):
+# #     user = db.query(User).filter(User.user_id == user_id).first()
+
+# #     if not user:
+# #         raise HTTPException(status_code=404, detail="User not found")
+
+# #     return {
+# #         "user_id": user.user_id,
+# #         "name": user.name,
+# #         "email": user.email,
+# #         "role": user.role,
+# #         "subject": user.subject,
+# #     }
+
+# # from fastapi import APIRouter, Depends, HTTPException
+# # from sqlalchemy.orm import Session
+# # from backend.database import SessionLocal
+# # from backend.models.users import User
+# # from pydantic import BaseModel
+
+# # router = APIRouter()
+
+# # # ----------------------
+# # # DB session dependency
+# # # ----------------------
+# # def get_db():
+# #     db = SessionLocal()
+# #     try:
+# #         yield db
+# #     finally:
+# #         db.close()
+
+# # # ----------------------
+# # # Pydantic response model
+# # # ----------------------
+# # class UserOut(BaseModel):
+# #     user_id: int
+# #     name: str
+# #     email: str
+# #     role: str
+# #     subject: str
+
+# #     class Config:
+# #         orm_mode = True
+
+# # # ----------------------
+# # # 1️⃣ Get all students
+# # # Route: /users/students
+# # # ----------------------
+# # @router.get("/students", response_model=list[UserOut])
+# # def get_all_students(db: Session = Depends(get_db)):
+# #     students = db.query(User).filter(User.role == "student").all()
+# #     return students
+
+# # # ----------------------
+# # # 2️⃣ Get single user by ID (safe route)
+# # # Route: /users/by-id/{user_id}
+# # # ----------------------
+# # @router.get("/by-id/{user_id}", response_model=UserOut)
+# # def get_user(user_id: int, db: Session = Depends(get_db)):
+# #     user = db.query(User).filter(User.user_id == user_id).first()
+# #     if not user:
+# #         raise HTTPException(status_code=404, detail="User not found")
+# #     return user
+
+# # from pydantic import BaseModel, EmailStr
+# # from fastapi import APIRouter, Depends, HTTPException
+# # from sqlalchemy.orm import Session
+
+# # from backend.database import SessionLocal
+# # from backend.models.users import User
+
+# # router = APIRouter()
 
 
-# def get_db():
-#     db = SessionLocal()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
+# # class CreateUserRequest(BaseModel):
+# #     name: str
+# #     email: EmailStr
+# #     password: str
+# #     role: str
+# #     subject: str | None = None
 
 
-# @router.get("/users/students")
-# def get_all_students(db: Session = Depends(get_db)):
-#     students = db.query(User).filter(User.role == "student").all()
-
-#     return [
-#         {
-#             "user_id": student.user_id,
-#             "name": student.name,
-#             "email": student.email,
-#             "role": student.role,
-#             "subject": student.subject,
-#         }
-#         for student in students
-#     ]
+# # def get_db():
+# #     db = SessionLocal()
+# #     try:
+# #         yield db
+# #     finally:
+# #         db.close()
 
 
-# @router.get("/users/teachers")
-# def get_all_teachers(db: Session = Depends(get_db)):
-#     teachers = db.query(User).filter(User.role == "teacher").all()
+# # @router.get("/users/students")
+# # def get_all_students(db: Session = Depends(get_db)):
+# #     students = db.query(User).filter(User.role == "student").all()
 
-#     return [
-#         {
-#             "user_id": teacher.user_id,
-#             "name": teacher.name,
-#             "email": teacher.email,
-#             "role": teacher.role,
-#             "subject": teacher.subject,
-#         }
-#         for teacher in teachers
-#     ]
-
-
-# @router.get("/users/by-id/{user_id}")
-# def get_user(user_id: int, db: Session = Depends(get_db)):
-#     user = db.query(User).filter(User.user_id == user_id).first()
-
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
-
-#     return {
-#         "user_id": user.user_id,
-#         "name": user.name,
-#         "email": user.email,
-#         "role": user.role,
-#         "subject": user.subject,
-#     }
+# #     return [
+# #         {
+# #             "user_id": student.user_id,
+# #             "name": student.name,
+# #             "email": student.email,
+# #             "role": student.role,
+# #             "subject": student.subject,
+# #         }
+# #         for student in students
+# #     ]
 
 
-# @router.post("/users")
-# def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
-#     role = payload.role.lower().strip()
+# # @router.get("/users/teachers")
+# # def get_all_teachers(db: Session = Depends(get_db)):
+# #     teachers = db.query(User).filter(User.role == "teacher").all()
 
-#     if role not in ["student", "teacher"]:
-#         raise HTTPException(status_code=400, detail="Role must be student or teacher")
+# #     return [
+# #         {
+# #             "user_id": teacher.user_id,
+# #             "name": teacher.name,
+# #             "email": teacher.email,
+# #             "role": teacher.role,
+# #             "subject": teacher.subject,
+# #         }
+# #         for teacher in teachers
+# #     ]
 
-#     if role == "teacher" and not payload.subject:
-#         raise HTTPException(status_code=400, detail="Subject is required for teacher")
 
-#     subject_value = None if role == "student" else payload.subject
+# # @router.get("/users/by-id/{user_id}")
+# # def get_user(user_id: int, db: Session = Depends(get_db)):
+# #     user = db.query(User).filter(User.user_id == user_id).first()
 
-#     existing_user = db.query(User).filter(User.email == payload.email).first()
-#     if existing_user:
-#         raise HTTPException(status_code=400, detail="Email already exists")
+# #     if not user:
+# #         raise HTTPException(status_code=404, detail="User not found")
 
-#     new_user = User(
-#         name=payload.name,
-#         email=payload.email,
-#         password=payload.password,
-#         role=role,
-#         subject=subject_value,
-#     )
+# #     return {
+# #         "user_id": user.user_id,
+# #         "name": user.name,
+# #         "email": user.email,
+# #         "role": user.role,
+# #         "subject": user.subject,
+# #     }
 
-#     db.add(new_user)
-#     db.commit()
-#     db.refresh(new_user)
 
-#     return {
-#         "message": "User created successfully",
-#         "user": {
-#             "user_id": new_user.user_id,
-#             "name": new_user.name,
-#             "email": new_user.email,
-#             "role": new_user.role,
-#             "subject": new_user.subject,
-#         },
-#     }
+# # @router.post("/users")
+# # def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
+# #     role = payload.role.lower().strip()
+
+# #     if role not in ["student", "teacher"]:
+# #         raise HTTPException(status_code=400, detail="Role must be student or teacher")
+
+# #     if role == "teacher" and not payload.subject:
+# #         raise HTTPException(status_code=400, detail="Subject is required for teacher")
+
+# #     subject_value = None if role == "student" else payload.subject
+
+# #     existing_user = db.query(User).filter(User.email == payload.email).first()
+# #     if existing_user:
+# #         raise HTTPException(status_code=400, detail="Email already exists")
+
+# #     new_user = User(
+# #         name=payload.name,
+# #         email=payload.email,
+# #         password=payload.password,
+# #         role=role,
+# #         subject=subject_value,
+# #     )
+
+# #     db.add(new_user)
+# #     db.commit()
+# #     db.refresh(new_user)
+
+# #     return {
+# #         "message": "User created successfully",
+# #         "user": {
+# #             "user_id": new_user.user_id,
+# #             "name": new_user.name,
+# #             "email": new_user.email,
+# #             "role": new_user.role,
+# #             "subject": new_user.subject,
+# #         },
+# #     }
+# # from pydantic import BaseModel, EmailStr
+# # from fastapi import APIRouter, Depends, HTTPException
+# # from sqlalchemy.orm import Session
+
+# # from database import SessionLocal
+# # from models.users import User
+
+# # router = APIRouter()
+
+
+# # # ✅ Request Schema
+# # class CreateUserRequest(BaseModel):
+# #     name: str
+# #     email: EmailStr
+# #     password: str
+# #     role: str
+# #     subject: str | None = None
+
+
+# # # ✅ DB Dependency
+# # def get_db():
+# #     db = SessionLocal()
+# #     try:
+# #         yield db
+# #     finally:
+# #         db.close()
+
+
+# # # ✅ GET ALL STUDENTS
+# # @router.get("/students")
+# # def get_students(db: Session = Depends(get_db)):
+# #     students = db.query(User).filter(User.role == "student").all()
+
+# #     return [
+# #         {
+# #             "name": s.name,
+# #             "email": s.email,
+# #             "role": s.role,
+# #             "subject": s.subject,
+# #         }
+# #         for s in students
+# #     ]
+
+
+# # # ✅ GET ALL TEACHERS
+# # @router.get("/teachers")
+# # def get_teachers(db: Session = Depends(get_db)):
+# #     teachers = db.query(User).filter(User.role == "teacher").all()
+
+# #     return [
+# #         {
+# #             "name": t.name,
+# #             "email": t.email,
+# #             "role": t.role,
+# #             "subject": t.subject,
+# #         }
+# #         for t in teachers
+# #     ]
+
+# # <<<<<<< HEAD
+# # =======
+# # @router.get("/users/by-id/{user_id}")
+# # def get_user(user_id: int, db: Session = Depends(get_db)):
+# #     user = db.query(User).filter(User.user_id == user_id).first()
+
+# #     if not user:
+# #         raise HTTPException(status_code=404, detail="User not found")
+
+# #     return {
+# #         "user_id": user.user_id,
+# #         "name": user.name,
+# #         "email": user.email,
+# #         "role": user.role,
+# #         "subject": user.subject,
+# # #     }
+
+# # >>>>>>> 29d16df (Registration update)
+
+# # # ✅ CREATE USER (MAIN FUNCTION)
+# # @router.post("/users")
+# # def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
+# #     role = payload.role.lower().strip()
+
+# #     # ✅ Validate role
+# #     if role not in ["student", "teacher"]:
+# #         raise HTTPException(status_code=400, detail="Role must be student or teacher")
+
+# #     # ✅ Validate subject
+# #     if role == "teacher" and not payload.subject:
+# #         raise HTTPException(status_code=400, detail="Subject is required for teacher")
+
+# #     subject_value = payload.subject if role == "teacher" else None
+
+# #     # ✅ Check duplicate email
+# #     existing_user = db.query(User).filter(User.email == payload.email).first()
+# #     if existing_user:
+# #         raise HTTPException(status_code=400, detail="Email already exists")
+
+# #     # ✅ Create user
+# #     new_user = User(
+# #         name=payload.name,
+# #         email=payload.email,
+# #         password=payload.password,
+# #         role=role,
+# #         subject=subject_value,
+# #     )
+
+# #     db.add(new_user)
+# #     db.commit()
+# #     db.refresh(new_user)
+
+# #     return {
+# #         "message": "User created successfully",
+# #         "name": new_user.name,
+# #         "email": new_user.email,
+# #         "role": new_user.role,
+# #         "subject": new_user.subject,
+# #     }
+
 # from pydantic import BaseModel, EmailStr
 # from fastapi import APIRouter, Depends, HTTPException
 # from sqlalchemy.orm import Session
 
 # from database import SessionLocal
 # from models.users import User
+# from models.student_details import StudentProfile
 
 # router = APIRouter()
 
 
-# # ✅ Request Schema
 # class CreateUserRequest(BaseModel):
 #     name: str
 #     email: EmailStr
@@ -259,8 +378,13 @@
 #     role: str
 #     subject: str | None = None
 
+# class UpdateUserRequest(BaseModel):
+#     name: str
+#     email: EmailStr
+#     role: str
+#     subject: str | None = None
 
-# # ✅ DB Dependency
+
 # def get_db():
 #     db = SessionLocal()
 #     try:
@@ -269,13 +393,16 @@
 #         db.close()
 
 
+# # ============================
 # # ✅ GET ALL STUDENTS
+# # ============================
 # @router.get("/students")
 # def get_students(db: Session = Depends(get_db)):
 #     students = db.query(User).filter(User.role == "student").all()
 
 #     return [
 #         {
+#             "user_id": s.user_id,
 #             "name": s.name,
 #             "email": s.email,
 #             "role": s.role,
@@ -285,13 +412,16 @@
 #     ]
 
 
+# # ============================
 # # ✅ GET ALL TEACHERS
+# # ============================
 # @router.get("/teachers")
 # def get_teachers(db: Session = Depends(get_db)):
 #     teachers = db.query(User).filter(User.role == "teacher").all()
 
 #     return [
 #         {
+#             "user_id": t.user_id,
 #             "name": t.name,
 #             "email": t.email,
 #             "role": t.role,
@@ -300,8 +430,11 @@
 #         for t in teachers
 #     ]
 
-# <<<<<<< HEAD
-# =======
+
+# # ============================
+# # ✅ GET USER BY ID (FIXED ROUTE)
+# # ============================
+# # ✅ GET USER BY ID (UPDATED ROUTE)
 # @router.get("/users/by-id/{user_id}")
 # def get_user(user_id: int, db: Session = Depends(get_db)):
 #     user = db.query(User).filter(User.user_id == user_id).first()
@@ -309,37 +442,82 @@
 #     if not user:
 #         raise HTTPException(status_code=404, detail="User not found")
 
+#     # 👇 ADD THIS LINE (fetch student profile)
+#     student_profile = db.query(StudentProfile).filter(
+#         StudentProfile.user_id == user_id
+#     ).first()
+
 #     return {
 #         "user_id": user.user_id,
 #         "name": user.name,
 #         "email": user.email,
 #         "role": user.role,
 #         "subject": user.subject,
-# #     }
 
-# >>>>>>> 29d16df (Registration update)
+#         # 👇 ADD THESE FIELDS
+#         "grade_level": student_profile.grade_level if student_profile else None,
+#         "learning_style": student_profile.learning_style if student_profile else None,
+#         "subjects_enrolled": student_profile.subjects_enrolled if student_profile else [],
+#         "xp_points": student_profile.xp_points if student_profile else 0,
+#         "last_active_at": str(student_profile.last_active_at) if student_profile else None,
+#     }
 
-# # ✅ CREATE USER (MAIN FUNCTION)
+# @router.get("/student-progress")
+# def get_student_progress(db: Session = Depends(get_db)):
+#     results = (
+#         db.query(StudentProfile, User)
+#         .join(User, StudentProfile.user_id == User.user_id)
+#         .filter(User.role == "student")
+#         .all()
+#     )
+
+#     return [
+#         {
+#             "user_id": profile.user_id,
+#             "name": user.name,
+#             "grade_level": profile.grade_level,
+#             "learning_style": profile.learning_style,
+#             "subjects_enrolled": profile.subjects_enrolled,
+#             "xp_points": profile.xp_points,
+#             "last_active_at": profile.last_active_at.isoformat() if profile.last_active_at else None,
+#         }
+#         for profile, user in results
+#     ]
+
+# @router.get("/users")
+# def get_all_users(db: Session = Depends(get_db)):
+#     users = db.query(User).order_by(User.user_id.asc()).all()
+
+#     return [
+#         {
+#             "user_id": u.user_id,
+#             "name": u.name,
+#             "email": u.email,
+#             "role": u.role,
+#             "subject": u.subject,
+#         }
+#         for u in users
+#     ]
+
+# # ============================
+# # ✅ CREATE USER
+# # ============================
 # @router.post("/users")
 # def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
 #     role = payload.role.lower().strip()
 
-#     # ✅ Validate role
 #     if role not in ["student", "teacher"]:
 #         raise HTTPException(status_code=400, detail="Role must be student or teacher")
 
-#     # ✅ Validate subject
 #     if role == "teacher" and not payload.subject:
 #         raise HTTPException(status_code=400, detail="Subject is required for teacher")
 
 #     subject_value = payload.subject if role == "teacher" else None
 
-#     # ✅ Check duplicate email
 #     existing_user = db.query(User).filter(User.email == payload.email).first()
 #     if existing_user:
 #         raise HTTPException(status_code=400, detail="Email already exists")
 
-#     # ✅ Create user
 #     new_user = User(
 #         name=payload.name,
 #         email=payload.email,
@@ -354,11 +532,73 @@
 
 #     return {
 #         "message": "User created successfully",
+#         "user_id": new_user.user_id,
 #         "name": new_user.name,
 #         "email": new_user.email,
 #         "role": new_user.role,
 #         "subject": new_user.subject,
 #     }
+
+# @router.put("/users/{user_id}")
+# def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.user_id == user_id).first()
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
+
+#     role = payload.role.lower().strip()
+
+#     if role not in ["student", "teacher", "admin"]:
+#         raise HTTPException(status_code=400, detail="Role must be student, teacher, or admin")
+
+#     if role == "teacher" and not payload.subject:
+#         raise HTTPException(status_code=400, detail="Subject is required for teacher")
+
+#     if role in ["student", "admin"]:
+#         subject_value = None
+#     else:
+#         subject_value = payload.subject
+
+#     existing_email_user = (
+#         db.query(User)
+#         .filter(User.email == payload.email, User.user_id != user_id)
+#         .first()
+#     )
+#     if existing_email_user:
+#         raise HTTPException(status_code=400, detail="Email already exists")
+
+#     user.name = payload.name
+#     user.email = payload.email
+#     user.role = role
+#     user.subject = subject_value
+
+#     db.commit()
+#     db.refresh(user)
+
+#     return {
+#         "message": "User updated successfully",
+#         "user_id": user.user_id,
+#         "name": user.name,
+#         "email": user.email,
+#         "role": user.role,
+#         "subject": user.subject,
+#     }
+
+
+# @router.delete("/users/{user_id}")
+# def delete_user(user_id: int, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.user_id == user_id).first()
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
+
+#     if user.role == "admin":
+#         raise HTTPException(status_code=400, detail="Admin users cannot be deleted")
+
+#     db.delete(user)
+#     db.commit()
+
+#     return {"message": "User deleted successfully"}
 
 from pydantic import BaseModel, EmailStr
 from fastapi import APIRouter, Depends, HTTPException
@@ -367,6 +607,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models.users import User
 from models.student_details import StudentProfile
+from models.student_progress import StudentProgress
 
 router = APIRouter()
 
@@ -377,6 +618,7 @@ class CreateUserRequest(BaseModel):
     password: str
     role: str
     subject: str | None = None
+
 
 class UpdateUserRequest(BaseModel):
     name: str
@@ -394,7 +636,7 @@ def get_db():
 
 
 # ============================
-# ✅ GET ALL STUDENTS
+# GET ALL STUDENTS
 # ============================
 @router.get("/students")
 def get_students(db: Session = Depends(get_db)):
@@ -413,7 +655,7 @@ def get_students(db: Session = Depends(get_db)):
 
 
 # ============================
-# ✅ GET ALL TEACHERS
+# GET ALL TEACHERS
 # ============================
 @router.get("/teachers")
 def get_teachers(db: Session = Depends(get_db)):
@@ -432,9 +674,8 @@ def get_teachers(db: Session = Depends(get_db)):
 
 
 # ============================
-# ✅ GET USER BY ID (FIXED ROUTE)
+# GET USER BY ID
 # ============================
-# ✅ GET USER BY ID (UPDATED ROUTE)
 @router.get("/users/by-id/{user_id}")
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.user_id == user_id).first()
@@ -442,10 +683,11 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # 👇 ADD THIS LINE (fetch student profile)
-    student_profile = db.query(StudentProfile).filter(
-        StudentProfile.user_id == user_id
-    ).first()
+    student_profile = (
+        db.query(StudentProfile)
+        .filter(StudentProfile.user_id == user_id)
+        .first()
+    )
 
     return {
         "user_id": user.user_id,
@@ -453,15 +695,90 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         "email": user.email,
         "role": user.role,
         "subject": user.subject,
-
-        # 👇 ADD THESE FIELDS
         "grade_level": student_profile.grade_level if student_profile else None,
         "learning_style": student_profile.learning_style if student_profile else None,
         "subjects_enrolled": student_profile.subjects_enrolled if student_profile else [],
         "xp_points": student_profile.xp_points if student_profile else 0,
-        "last_active_at": str(student_profile.last_active_at) if student_profile else None,
+        "last_active_at": (
+            student_profile.last_active_at.isoformat()
+            if student_profile and student_profile.last_active_at
+            else None
+        ),
     }
 
+
+# ============================
+# GET FULL STUDENT PROFILE
+# ============================
+@router.get("/student-profile/{user_id}")
+def get_student_full_profile(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.role != "student":
+        raise HTTPException(status_code=400, detail="This user is not a student")
+
+    student_profile = (
+        db.query(StudentProfile)
+        .filter(StudentProfile.user_id == user_id)
+        .first()
+    )
+
+    if not student_profile:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+
+    progress_rows = (
+        db.query(StudentProgress)
+        .filter(StudentProgress.student_profile_id == student_profile.student_profile_id)
+        .order_by(StudentProgress.updated_at.desc(), StudentProgress.student_progress_id.asc())
+        .all()
+    )
+
+    total_score = round(sum(float(row.score or 0) for row in progress_rows), 2)
+    average_score = round(total_score / len(progress_rows), 2) if progress_rows else 0.0
+
+    return {
+        "user": {
+            "user_id": user.user_id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "subject": user.subject,
+        },
+        "student_profile": {
+            "student_profile_id": student_profile.student_profile_id,
+            "user_id": student_profile.user_id,
+            "grade_level": student_profile.grade_level,
+            "learning_style": student_profile.learning_style,
+            "subjects_enrolled": student_profile.subjects_enrolled or [],
+            "xp_points": student_profile.xp_points,
+            "last_active_at": (
+                student_profile.last_active_at.isoformat()
+                if student_profile.last_active_at
+                else None
+            ),
+            "total_score": total_score,
+            "average_score": average_score,
+            "topics_covered": len(progress_rows),
+        },
+        "progress": [
+            {
+                "student_progress_id": row.student_progress_id,
+                "subject": row.subject,
+                "topic": row.topic,
+                "score": row.score,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+            }
+            for row in progress_rows
+        ],
+    }
+
+
+# ============================
+# GET STUDENT PROFILE SUMMARY TABLE
+# ============================
 @router.get("/student-progress")
 def get_student_progress(db: Session = Depends(get_db)):
     results = (
@@ -473,6 +790,7 @@ def get_student_progress(db: Session = Depends(get_db)):
 
     return [
         {
+            "student_profile_id": profile.student_profile_id,
             "user_id": profile.user_id,
             "name": user.name,
             "grade_level": profile.grade_level,
@@ -484,6 +802,10 @@ def get_student_progress(db: Session = Depends(get_db)):
         for profile, user in results
     ]
 
+
+# ============================
+# GET ALL USERS
+# ============================
 @router.get("/users")
 def get_all_users(db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.user_id.asc()).all()
@@ -499,8 +821,9 @@ def get_all_users(db: Session = Depends(get_db)):
         for u in users
     ]
 
+
 # ============================
-# ✅ CREATE USER
+# CREATE USER
 # ============================
 @router.post("/users")
 def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
@@ -539,6 +862,10 @@ def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
         "subject": new_user.subject,
     }
 
+
+# ============================
+# UPDATE USER
+# ============================
 @router.put("/users/{user_id}")
 def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.user_id == user_id).first()
@@ -585,6 +912,9 @@ def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(
     }
 
 
+# ============================
+# DELETE USER
+# ============================
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.user_id == user_id).first()
