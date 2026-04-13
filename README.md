@@ -101,3 +101,9 @@ Run backend with host `127.0.0.1` instead.
 
 - Restart backend (`--reload` usually handles code changes)
 - If changing `.env`, always restart backend and frontend.
+
+## Dump Database
+
+```bash
+pg_dump -p 5432 -d capgemini_sprint --no-owner --no-acl --clean --if-exists --schema-only -f database/schema.sql
+```

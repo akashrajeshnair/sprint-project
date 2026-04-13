@@ -429,6 +429,7 @@ class ChatToolAskRequest(BaseModel):
     response_mode: str = Field(default="step-by-step")
     selected_file: str | None = None
     use_rag_context: bool = True
+    use_web_search: bool = False
     top_k: int = Field(default=1, ge=1, le=8)
     persist_messages: bool = True
     create_new_session: bool = True
@@ -711,6 +712,7 @@ def chat_ask_with_rag_tool(payload: ChatToolAskRequest, db: Session = Depends(ge
         response_mode=payload.response_mode,
         selected_file=payload.selected_file,
         use_rag_context=payload.use_rag_context,
+        use_web_search=payload.use_web_search,
         top_k=payload.top_k,
         max_steps=2,
     )

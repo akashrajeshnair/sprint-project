@@ -19,4 +19,5 @@ python-jose==3.5.0
 passlib==1.7.4
 bcrypt==5.0.0
 email-validator==2.3.0
+duckduckgo-search>=6.2.0
 matplotlib
