@@ -276,11 +276,13 @@ with st.sidebar:
     st.subheader("Chat Settings")
     if role == "teacher":
         use_rag_context = st.toggle("Use RAG context", value=True)
+        use_web_search = st.toggle("Use web search (DuckDuckGo)", value=False)
         top_k = st.slider("Top K sources", min_value=1, max_value=8, value=3)
         response_mode = st.selectbox("Response mode", options=["step-by-step", "short"], index=0)
         learner_level = st.selectbox("Learner level", options=["beginner", "intermediate", "advanced"], index=0)
     else:
         use_rag_context = st.toggle("Use RAG context", value=True, key="student_use_rag_context")
+        use_web_search = st.toggle("Use web search (DuckDuckGo)", value=False, key="student_use_web_search")
         top_k = 3
         response_mode = "step-by-step"
         learner_level = "beginner"
@@ -332,6 +334,7 @@ def _submit_chat(
             "response_mode": response_mode,
             "selected_file": None,
             "use_rag_context": False if force_non_rag else use_rag_context,
+            "use_web_search": use_web_search,
             "top_k": top_k,
             "persist_messages": True,
         }
@@ -409,7 +412,7 @@ if st.session_state.comparison_mode:
             visible_question = f"Compare {topic_1_clean} and {topic_2_clean}"
             _submit_chat(
                 comparison_prompt,
-                force_non_rag=True,
+                force_non_rag=False,
                 is_comparison=True,
                 display_question=visible_question,
             )

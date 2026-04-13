@@ -3,7 +3,9 @@ from __future__ import annotations
 import re
 import os
 import shutil
+import importlib
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
@@ -15,6 +17,12 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
+
+try:
+    _ddgs_module = importlib.import_module("duckduckgo_search")
+    DDGS: Any | None = getattr(_ddgs_module, "DDGS", None)
+except Exception:  # pragma: no cover - optional dependency guard
+    DDGS = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -28,8 +36,10 @@ load_dotenv(PROJECT_ENV_PATH)
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_TOP_K = 4
 CONTENT_RETRIEVAL_TOOL = "content_retrieval"
+WEB_SEARCH_TOOL = "duckduckgo_search"
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150
+SECTION_HEADER_RE = re.compile(r"(?m)^\s*(\d{1,2})\.\s+([^\n]+)")
 
 SUPPORTED_DOC_SUFFIXES = {".pdf"}
 ROLE_MAP = {"student": "students", "teacher": "teachers"}
@@ -93,6 +103,7 @@ class RagService:
         response_mode: str = "step-by-step",
         selected_file: str | None = None,
         use_rag_context: bool = True,
+        use_web_search: bool = False,
         top_k: int = DEFAULT_TOP_K,
     ) -> dict:
         return self.answer_with_agent_loop(
@@ -102,6 +113,7 @@ class RagService:
             response_mode=response_mode,
             selected_file=selected_file,
             use_rag_context=use_rag_context,
+            use_web_search=use_web_search,
             top_k=top_k,
             max_steps=2,
         )
@@ -114,6 +126,7 @@ class RagService:
         response_mode: str = "step-by-step",
         selected_file: str | None = None,
         use_rag_context: bool = True,
+        use_web_search: bool = False,
         top_k: int = DEFAULT_TOP_K,
         max_steps: int = 2,
     ) -> dict:
@@ -134,6 +147,40 @@ class RagService:
         # In non-RAG mode, bypass retrieval entirely and send the raw question
         # directly to the configured LLM API.
         if not use_rag_context:
+            tool_calls_used: list[dict] = []
+            web_results: list[dict[str, str]] = []
+            if use_web_search:
+                web_results = self._run_web_search(question=prompt, max_results=max(3, min(int(top_k or 3) + 1, 8)))
+                tool_calls_used.append(
+                    {
+                        "name": WEB_SEARCH_TOOL,
+                        "arguments": {
+                            "question": prompt,
+                            "max_results": max(3, min(int(top_k or 3) + 1, 8)),
+                        },
+                        "result_count": len(web_results),
+                        "step": 1,
+                    }
+                )
+
+            web_answer = self._llm_web_response(
+                question=prompt,
+                response_mode=response_mode,
+                web_results=web_results,
+            )
+            if web_answer:
+                return {
+                    "answer": web_answer,
+                    "sources": self._web_sources(web_results),
+                    "context_used": bool(web_results),
+                    "selected_file": selected_file,
+                    "use_rag_context": use_rag_context,
+                    "use_web_search": use_web_search,
+                    "tool_calls_used": tool_calls_used,
+                    "agent_steps_run": len(tool_calls_used),
+                    "agent_loop_used": True,
+                }
+
             direct_answer = self._llm_direct_response(
                 question=prompt,
                 role=normalized_role,
@@ -147,16 +194,18 @@ class RagService:
                 )
             return {
                 "answer": direct_answer,
-                "sources": [],
-                "context_used": False,
+                "sources": self._web_sources(web_results),
+                "context_used": bool(web_results),
                 "selected_file": selected_file,
                 "use_rag_context": use_rag_context,
-                "tool_calls_used": [],
-                "agent_steps_run": 0,
-                "agent_loop_used": False,
+                "use_web_search": use_web_search,
+                "tool_calls_used": tool_calls_used,
+                "agent_steps_run": len(tool_calls_used),
+                "agent_loop_used": bool(tool_calls_used),
             }
 
         docs: list[Document] = []
+        web_results: list[dict[str, str]] = []
         tool_calls_used: list[dict] = []
         bounded_steps = max(1, min(int(max_steps or 2), 3))
         current_question = prompt
@@ -200,6 +249,21 @@ class RagService:
             if step < bounded_steps:
                 current_question = self._refine_question_for_retry(prompt, step)
 
+        if not docs and use_web_search:
+            web_result_limit = max(3, min(int(top_k or 3) + 1, 8))
+            web_results = self._run_web_search(question=prompt, max_results=web_result_limit)
+            tool_calls_used.append(
+                {
+                    "name": WEB_SEARCH_TOOL,
+                    "arguments": {
+                        "question": prompt,
+                        "max_results": web_result_limit,
+                    },
+                    "result_count": len(web_results),
+                    "step": len(tool_calls_used) + 1,
+                }
+            )
+
         if docs:
             rag_answer = self._select_relevant_rag_answer(
                 docs=docs,
@@ -234,7 +298,11 @@ class RagService:
                     )
                 docs = []
         else:
-            llm_answer = self._llm_general_response(
+            llm_answer = self._llm_web_response(
+                question=prompt,
+                response_mode=response_mode,
+                web_results=web_results,
+            ) or self._llm_general_response(
                 question=prompt,
                 role=normalized_role,
                 learner_level=learner_level,
@@ -266,17 +334,114 @@ class RagService:
             }
             for doc in docs
         ]
+        if not sources and web_results:
+            sources = self._web_sources(web_results)
 
         return {
             "answer": answer,
             "sources": sources,
-            "context_used": bool(docs),
+            "context_used": bool(docs) or bool(web_results),
             "selected_file": selected_file,
             "use_rag_context": use_rag_context,
+            "use_web_search": use_web_search,
             "tool_calls_used": tool_calls_used,
             "agent_steps_run": len(tool_calls_used),
             "agent_loop_used": True,
         }
+
+    def _run_web_search(self, question: str, max_results: int = 5) -> list[dict[str, str]]:
+        if DDGS is None:
+            return []
+
+        query = " ".join((question or "").split()).strip()
+        if not query:
+            return []
+
+        limit = max(1, min(int(max_results or 5), 8))
+        try:
+            with DDGS() as ddgs:
+                raw_results = list(ddgs.text(query, max_results=limit))
+        except Exception:
+            return []
+
+        seen: set[str] = set()
+        normalized: list[dict[str, str]] = []
+        for row in raw_results:
+            if not isinstance(row, dict):
+                continue
+            title = " ".join(str(row.get("title", "")).split()).strip()
+            snippet = " ".join(str(row.get("body", "")).split()).strip()
+            url = " ".join(str(row.get("href", "")).split()).strip()
+            key = f"{title}|{url}".lower()
+            if not key.strip("|") or key in seen:
+                continue
+            seen.add(key)
+            normalized.append({"title": title, "snippet": snippet, "url": url})
+        return normalized
+
+    def _web_sources(self, web_results: list[dict[str, str]]) -> list[dict]:
+        return [
+            {
+                "source": item.get("url") or item.get("title") or "web",
+                "page": None,
+                "snippet": item.get("snippet", "")[:220],
+            }
+            for item in web_results
+        ]
+
+    def _llm_web_response(
+        self,
+        question: str,
+        response_mode: str,
+        web_results: list[dict[str, str]],
+    ) -> str | None:
+        if not web_results:
+            return None
+
+        llm = self._get_general_llm()
+        if llm is None:
+            fallback_lines: list[str] = []
+            for idx, item in enumerate(web_results[:5], start=1):
+                title = item.get("title") or "Untitled"
+                snippet = item.get("snippet") or ""
+                fallback_lines.append(f"{idx}. {title}: {snippet}")
+            if not fallback_lines:
+                return None
+            return "Web summary (LLM unavailable):\n" + "\n".join(fallback_lines)
+
+        mode = (response_mode or "step-by-step").strip().lower()
+        if mode not in {"short", "step-by-step"}:
+            mode = "step-by-step"
+
+        web_context = "\n".join(
+            f"[{idx}] {item.get('title', 'Untitled')} | {item.get('url', '')}\n{item.get('snippet', '')}"
+            for idx, item in enumerate(web_results, start=1)
+        )
+        system_prompt = (
+            "You are a helpful assistant that answers using web search snippets only. "
+            "Use only facts present in snippets. If snippets are insufficient, say so clearly. "
+            "Do not invent URLs or unsupported claims."
+        )
+        user_prompt = (
+            f"Question: {question}\n"
+            f"Response mode: {mode}\n"
+            "Use the snippets below to answer accurately and concisely.\n\n"
+            f"{web_context}"
+        )
+
+        try:
+            result = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
+        except Exception:
+            return None
+
+        content = getattr(result, "content", "")
+        if isinstance(content, list):
+            content = " ".join(str(part) for part in content)
+        if not isinstance(content, str):
+            return None
+
+        text = content.strip()
+        return text or None
 
     def _select_relevant_rag_answer(
         self,
@@ -703,7 +868,11 @@ class RagService:
                 metadata["role"] = role
                 enriched_pages.append(Document(page_content=text, metadata=metadata))
 
-            chunk_docs = [doc for doc in self._splitter.split_documents(enriched_pages) if (doc.page_content or "").strip()]
+            chunk_docs = self._chunk_pdf_documents(
+                pdf_path=pdf_path,
+                role=role,
+                enriched_pages=enriched_pages,
+            )
             if chunk_docs:
                 all_docs.extend(chunk_docs)
                 processed.append({"file_name": pdf_path.name, "chunks": len(chunk_docs), "role": role})
@@ -754,6 +923,82 @@ class RagService:
             ]
         )
 
+    def _chunk_pdf_documents(self, pdf_path: Path, role: str, enriched_pages: list[Document]) -> list[Document]:
+        if not enriched_pages:
+            return []
+
+        if self._should_use_section_chunking(pdf_path=pdf_path, pages=enriched_pages):
+            section_docs = self._build_section_chunks(pdf_path=pdf_path, role=role, pages=enriched_pages)
+            if section_docs:
+                return section_docs
+
+        return [doc for doc in self._splitter.split_documents(enriched_pages) if (doc.page_content or "").strip()]
+
+    def _should_use_section_chunking(self, pdf_path: Path, pages: list[Document]) -> bool:
+        _ = pages  # reserved for potential future rule expansion
+        file_name = pdf_path.stem.strip().lower()
+        return file_name.startswith("comparison")
+
+    def _extract_numbered_sections(self, text: str) -> list[tuple[str, str, str]]:
+        normalized = (text or "").strip()
+        if not normalized:
+            return []
+
+        matches = list(SECTION_HEADER_RE.finditer(normalized))
+        if not matches:
+            return []
+
+        sections: list[tuple[str, str, str]] = []
+        for idx, match in enumerate(matches):
+            start = match.start()
+            end = matches[idx + 1].start() if idx + 1 < len(matches) else len(normalized)
+            section_number = (match.group(1) or "").strip()
+            section_title = (match.group(2) or "").strip().rstrip(":")
+            section_text = normalized[start:end].strip()
+            if section_text:
+                sections.append((section_number, section_title, section_text))
+        return sections
+
+    def _build_section_chunks(self, pdf_path: Path, role: str, pages: list[Document]) -> list[Document]:
+        section_docs: list[Document] = []
+
+        for page in pages:
+            base_metadata = dict(page.metadata or {})
+            text = (page.page_content or "").strip()
+            if not text:
+                continue
+
+            page_sections = self._extract_numbered_sections(text)
+            if not page_sections:
+                page_fallback_docs = self._splitter.split_documents([page])
+                for doc in page_fallback_docs:
+                    if not (doc.page_content or "").strip():
+                        continue
+                    fallback_meta = dict(doc.metadata or {})
+                    fallback_meta["chunk_type"] = "default_recursive"
+                    fallback_meta["source"] = pdf_path.name
+                    fallback_meta["role"] = role
+                    section_docs.append(Document(page_content=doc.page_content, metadata=fallback_meta))
+                continue
+
+            for section_number, section_title, section_text in page_sections:
+                lowered = section_text.lower()
+                chunk_type = "criterion_comparison" if ("java" in lowered and "python" in lowered) else "section"
+                metadata = dict(base_metadata)
+                metadata.update(
+                    {
+                        "source": pdf_path.name,
+                        "role": role,
+                        "section_number": section_number,
+                        "section_title": section_title,
+                        "chunk_type": chunk_type,
+                        "comparison_topics": "java,python" if chunk_type == "criterion_comparison" else "",
+                    }
+                )
+                section_docs.append(Document(page_content=section_text, metadata=metadata))
+
+        return [doc for doc in section_docs if (doc.page_content or "").strip()]
+
 
 service = RagService()
 
@@ -763,6 +1008,11 @@ class ContentRetrievalInput(BaseModel):
     role: str = Field(default="student", pattern="^(student|teacher)$")
     top_k: int = Field(default=1, ge=1, le=8)
     selected_file: str | None = None
+
+
+class WebSearchInput(BaseModel):
+    question: str = Field(min_length=1)
+    max_results: int = Field(default=5, ge=1, le=8)
 
 
 @tool(CONTENT_RETRIEVAL_TOOL, args_schema=ContentRetrievalInput)
@@ -787,6 +1037,19 @@ def content_retrieval(
     )
 
 
+@tool(WEB_SEARCH_TOOL, args_schema=WebSearchInput)
+def duckduckgo_search_tool(question: str, max_results: int = 5) -> str:
+    """Run DuckDuckGo web search and return concise snippets."""
+    results = service._run_web_search(question=question, max_results=max_results)
+    if not results:
+        return "No relevant web results found."
+
+    return "\n".join(
+        f"[{idx}] {item.get('title', 'Untitled')} ({item.get('url', '')}) - {item.get('snippet', '')}"
+        for idx, item in enumerate(results, start=1)
+    )
+
+
 def get_langchain_tools() -> list:
     """Return LangChain tools for agent/tool-calling orchestration."""
-    return [content_retrieval]
+    return [content_retrieval, duckduckgo_search_tool]
