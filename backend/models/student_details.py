@@ -1,11 +1,8 @@
-# <<<<<<< HEAD
 # from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 # from sqlalchemy.dialects.postgresql import ARRAY
-# =======
 # from sqlalchemy import Column, Integer, Text, DateTime
 # from sqlalchemy.dialects.postgresql import JSONB
 
-# >>>>>>> 74b3255f47e97f29216f23bbe61712b18ff64631
 # from database import Base
 
 
@@ -13,7 +10,6 @@
 #     __tablename__ = "student_profiles"
 
 #     student_profile_id = Column(Integer, primary_key=True, index=True)
-# <<<<<<< HEAD
 #     user_id = Column(Integer, ForeignKey("users.user_id"))
 
 #     grade_level = Column(String)
@@ -23,14 +19,12 @@
 #     xp_points = Column(Integer)
 
 #     last_active_at = Column(DateTime)
-# =======
 #     user_id = Column(Integer, nullable=False, unique=True)
 #     grade_level = Column(Text)
 #     learning_style = Column(Text)
 #     subjects_enrolled = Column(JSONB)
 #     xp_points = Column(Integer, default=0)
 #     last_active_at = Column(DateTime(timezone=True))
-# >>>>>>> 74b3255f47e97f29216f23bbe61712b18ff64631
 
 from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import JSONB

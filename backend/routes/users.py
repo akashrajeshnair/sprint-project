@@ -300,8 +300,6 @@
 # #         for t in teachers
 # #     ]
 
-# # <<<<<<< HEAD
-# # =======
 # # @router.get("/users/by-id/{user_id}")
 # # def get_user(user_id: int, db: Session = Depends(get_db)):
 # #     user = db.query(User).filter(User.user_id == user_id).first()
@@ -316,8 +314,6 @@
 # #         "role": user.role,
 # #         "subject": user.subject,
 # # #     }
-
-# # >>>>>>> 29d16df (Registration update)
 
 # # # ✅ CREATE USER (MAIN FUNCTION)
 # # @router.post("/users")

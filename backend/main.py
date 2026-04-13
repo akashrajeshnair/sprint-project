@@ -1,4 +1,3 @@
-# <<<<<<< Updated upstream
 # from __future__ import annotations
 
 # import os
@@ -24,11 +23,9 @@
 # from fastapi import FastAPI
 # from backend.routes.auth import router as auth_router
 # from backend.routes.users import router as users_router   # ✅ MOVE UP
-# >>>>>>> Stashed changes
 
 # STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-# <<<<<<< Updated upstream
 # try:
 # 	# Works when running from `backend/` (e.g., `python main.py`)
 # 	from services.rag import service as rag_service
@@ -81,7 +78,6 @@
 # =======
 # app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 # app.include_router(users_router, tags=["Users"])
-# >>>>>>> Stashed changes
 
 from __future__ import annotations
 
