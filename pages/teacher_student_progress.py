@@ -61,6 +61,23 @@ if "role" not in st.session_state or st.session_state.role != "teacher":
 
 st.set_page_config(page_title="All Students", layout="wide")
 
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, #1a2a22 0%, #101b16 48%, #0b120f 100%);
+        color: #e8f1ea;
+    }
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.45rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 API_BASE_URL = "http://127.0.0.1:8000"
 
 st.title("📚 All Students")
@@ -85,13 +102,34 @@ try:
         students = response.json()
 
         if students:
-            st.subheader("Student List")
+            st.markdown("<div class='section-title'>Student List</div>", unsafe_allow_html=True)
 
             df = pd.DataFrame(students)
-            st.dataframe(df, use_container_width=True)
+
+            metric_col1, metric_col2 = st.columns(2)
+            with metric_col1:
+                st.metric("Total Students", len(df))
+            with metric_col2:
+                st.metric("Unique Subjects", int(df["subject"].fillna("N/A").nunique()) if "subject" in df.columns else 0)
+
+            display_cols = [col for col in ["user_id", "name", "email", "role", "subject"] if col in df.columns]
+            table_df = df[display_cols].copy() if display_cols else df.copy()
+
+            st.dataframe(
+                table_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "user_id": "User ID",
+                    "name": "Name",
+                    "email": "Email",
+                    "role": "Role",
+                    "subject": "Subject",
+                },
+            )
 
             st.divider()
-            st.subheader("Open Student Profile")
+            st.markdown("<div class='section-title'>Open Student Profile</div>", unsafe_allow_html=True)
 
             student_options = {
                 f"{student['user_id']} - {student['name']}": student["user_id"]

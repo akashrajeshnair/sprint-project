@@ -87,6 +87,25 @@ import streamlit as st
 
 st.set_page_config(page_title="Login", page_icon="🔐", layout="centered")
 
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, #1b2436 0%, #121827 52%, #0c111c 100%);
+        color: #e8ecf7;
+    }
+    .login-card {
+        background: #141d2f;
+        border: 1px solid #32415e;
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+        margin-bottom: 0.8rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 API_BASE_URL = "http://127.0.0.1:8000"
 
 if "access_token" not in st.session_state:
@@ -96,7 +115,7 @@ if "role" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
 
-st.title("Login")
+st.markdown("<div class='login-card'><h2 style='margin:0;'>Login</h2><p style='margin:0.25rem 0 0 0;opacity:0.9;'>Sign in to continue to your dashboard.</p></div>", unsafe_allow_html=True)
 
 with st.form("login_form"):
     email = st.text_input("Email")
