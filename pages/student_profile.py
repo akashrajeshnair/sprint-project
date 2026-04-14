@@ -203,6 +203,23 @@ if "role" not in st.session_state or st.session_state.role != "student":
 
 st.set_page_config(page_title="Student Profile", layout="wide")
 
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, #1c2638 0%, #101722 48%, #0a1019 100%);
+        color: #e8edf9;
+    }
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.45rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 API_BASE_URL = "http://127.0.0.1:8000"
 
 st.title("👤 Student Profile")
@@ -232,23 +249,25 @@ try:
         profile = data["student_profile"]
         progress = data["progress"]
 
-        st.subheader("Basic Details")
+        st.markdown("<div class='section-title'>Basic Details</div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
 
         with c1:
-            st.write(f"**Name:** {user.get('name', 'N/A')}")
-            st.write(f"**Email:** {user.get('email', 'N/A')}")
-            st.write(f"**Role:** {user.get('role', 'N/A')}")
-            st.write(f"**Grade Level:** {profile.get('grade_level', 'N/A')}")
+            with st.container(border=True):
+                st.write(f"**Name:** {user.get('name', 'N/A')}")
+                st.write(f"**Email:** {user.get('email', 'N/A')}")
+                st.write(f"**Role:** {user.get('role', 'N/A')}")
+                st.write(f"**Grade Level:** {profile.get('grade_level', 'N/A')}")
 
         with c2:
-            st.write(f"**Learning Style:** {profile.get('learning_style', 'N/A')}")
-            st.write(f"**Subjects Enrolled:** {', '.join(profile.get('subjects_enrolled', []))}")
-            st.write(f"**Last Active At:** {profile.get('last_active_at', 'N/A')}")
+            with st.container(border=True):
+                st.write(f"**Learning Style:** {profile.get('learning_style', 'N/A')}")
+                st.write(f"**Subjects Enrolled:** {', '.join(profile.get('subjects_enrolled', []))}")
+                st.write(f"**Last Active At:** {profile.get('last_active_at', 'N/A')}")
 
         st.divider()
 
-        st.subheader("Performance Summary")
+        st.markdown("<div class='section-title'>Performance Summary</div>", unsafe_allow_html=True)
         m1, m2, m3 = st.columns(3)
 
         with m1:
@@ -264,7 +283,7 @@ try:
 
         st.divider()
 
-        st.subheader("Topic-wise Progress")
+        st.markdown("<div class='section-title'>Topic-wise Progress</div>", unsafe_allow_html=True)
 
         if progress:
             df = pd.DataFrame(progress)
@@ -280,7 +299,19 @@ try:
                 }
             )
 
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Score": st.column_config.ProgressColumn(
+                        "Score",
+                        min_value=0.0,
+                        max_value=1.0,
+                        format="%.2f",
+                    ),
+                },
+            )
 
             st.divider()
             st.subheader("📊 Progress Visualization")
