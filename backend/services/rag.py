@@ -829,12 +829,25 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_TOP_K = 8
 CONTENT_RETRIEVAL_TOOL = "content_retrieval"
 WEB_SEARCH_TOOL = "duckduckgo_search"
+USER_SCORE_TOOL = "user_score_lookup"
+EXPLANATION_TOOL = "detailed_explanation"
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150
 SECTION_HEADER_RE = re.compile(r"(?m)^\s*(\d{1,2})\.\s+([^\n]+)")
 
 SUPPORTED_DOC_SUFFIXES = {".pdf"}
 ROLE_MAP = {"student": "students", "teacher": "teachers"}
+
+try:
+    from database import SessionLocal
+    from models.student_details import StudentProfile
+    from models.student_progress import StudentProgress
+    from models.users import User
+except (ModuleNotFoundError, ImportError):
+    from backend.database import SessionLocal
+    from backend.models.student_details import StudentProfile
+    from backend.models.student_progress import StudentProgress
+    from backend.models.users import User
 
 
 class RagService:
@@ -895,6 +908,9 @@ class RagService:
         selected_file: str | None = None,
         use_rag_context: bool = True,
         use_web_search: bool = False,
+        use_score_tool: bool = True,
+        use_explanation_tool: bool = True,
+        user_id: int | None = None,
         top_k: int = DEFAULT_TOP_K,
     ) -> dict:
         return self.answer_with_agent_loop(
@@ -905,6 +921,9 @@ class RagService:
             selected_file=selected_file,
             use_rag_context=use_rag_context,
             use_web_search=use_web_search,
+            use_score_tool=use_score_tool,
+            use_explanation_tool=use_explanation_tool,
+            user_id=user_id,
             top_k=top_k,
             max_steps=2,
         )
@@ -918,6 +937,9 @@ class RagService:
         selected_file: str | None = None,
         use_rag_context: bool = True,
         use_web_search: bool = False,
+        use_score_tool: bool = True,
+        use_explanation_tool: bool = True,
+        user_id: int | None = None,
         top_k: int = DEFAULT_TOP_K,
         max_steps: int = 2,
     ) -> dict:
@@ -933,6 +955,77 @@ class RagService:
                 "sources": [],
                 "context_used": False,
                 "tool_calls_used": [],
+            }
+
+        if use_explanation_tool and self._is_explanation_request(prompt):
+            explanation = self._llm_explanation_response(
+                question=prompt,
+                role=normalized_role,
+                learner_level=learner_level,
+            )
+            if not explanation:
+                explanation = self._build_explanation_fallback(
+                    question=prompt,
+                    role=normalized_role,
+                    learner_level=learner_level,
+                )
+
+            return {
+                "answer": explanation,
+                "sources": [],
+                "context_used": False,
+                "selected_file": selected_file,
+                "use_rag_context": use_rag_context,
+                "use_web_search": use_web_search,
+                "tool_calls_used": [
+                    {
+                        "name": EXPLANATION_TOOL,
+                        "arguments": {
+                            "question": prompt,
+                            "role": normalized_role,
+                            "learner_level": learner_level,
+                        },
+                        "result_count": 1,
+                        "step": 1,
+                    }
+                ],
+                "agent_steps_run": 1,
+                "agent_loop_used": True,
+            }
+
+        if use_score_tool and self._is_score_request(prompt):
+            subject_filter, topic_filter = self._extract_score_filters(prompt)
+            score_summary = self._get_user_score_summary(
+                user_id=user_id,
+                subject=subject_filter,
+                topic=topic_filter,
+            )
+            score_answer = self._format_score_summary(
+                summary=score_summary,
+                response_mode=response_mode,
+            )
+            topics_count = int(score_summary.get("topics_covered", 0) or 0)
+            return {
+                "answer": score_answer,
+                "sources": [],
+                "context_used": topics_count > 0,
+                "selected_file": selected_file,
+                "use_rag_context": use_rag_context,
+                "use_web_search": use_web_search,
+                "tool_calls_used": [
+                    {
+                        "name": USER_SCORE_TOOL,
+                        "arguments": {
+                            "user_id": user_id,
+                            "subject": subject_filter,
+                            "topic": topic_filter,
+                        },
+                        "result_count": topics_count,
+                        "step": 1,
+                    }
+                ],
+                "agent_steps_run": 1,
+                "agent_loop_used": True,
             }
 
         if not use_rag_context:
@@ -1222,6 +1315,166 @@ class RagService:
         text = content.strip()
         return text or None
 
+    def _is_score_request(self, prompt: str) -> bool:
+        text = " ".join((prompt or "").strip().lower().split())
+        if not text:
+            return False
+
+        markers = (
+            "my score",
+            "show score",
+            "what is my score",
+            "my progress",
+            "show progress",
+            "my xp",
+            "xp points",
+            "performance summary",
+        )
+        return any(marker in text for marker in markers)
+
+    def _extract_score_filters(self, prompt: str) -> tuple[str | None, str | None]:
+        text = (prompt or "").lower()
+        subject: str | None = None
+        topic: str | None = None
+
+        subject_keywords = {
+            "dbms": "DBMS",
+            "database": "DBMS",
+            "math": "Mathematics",
+            "mathematics": "Mathematics",
+            "physics": "Physics",
+            "chemistry": "Chemistry",
+            "history": "History",
+            "biology": "Biology",
+        }
+        for key, value in subject_keywords.items():
+            if key in text:
+                subject = value
+                break
+
+        topic_match = re.search(r"(?:topic|for topic)\s*[:=-]?\s*([a-zA-Z0-9 _-]{2,60})", text)
+        if topic_match:
+            topic = " ".join(topic_match.group(1).split()).title()
+
+        return subject, topic
+
+    def _get_user_score_summary(
+        self,
+        user_id: int | None,
+        subject: str | None = None,
+        topic: str | None = None,
+    ) -> dict:
+        if user_id is None:
+            return {
+                "status": "error",
+                "message": "User context is missing. Please log in and try again.",
+            }
+
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.user_id == int(user_id)).first()
+            if not user:
+                return {
+                    "status": "error",
+                    "message": "User not found.",
+                }
+
+            if (user.role or "").strip().lower() != "student":
+                return {
+                    "status": "forbidden",
+                    "message": "Score lookup is available only for student users.",
+                }
+
+            profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.user_id).first()
+            if not profile:
+                return {
+                    "status": "ok",
+                    "user_id": user.user_id,
+                    "name": user.name,
+                    "xp_points": 0,
+                    "total_score": 0.0,
+                    "average_score": 0.0,
+                    "topics_covered": 0,
+                    "progress": [],
+                }
+
+            query = db.query(StudentProgress).filter(
+                StudentProgress.student_profile_id == profile.student_profile_id,
+            )
+            if subject:
+                query = query.filter(StudentProgress.subject.ilike(subject))
+            if topic:
+                query = query.filter(StudentProgress.topic.ilike(f"%{topic}%"))
+
+            progress_rows = query.order_by(
+                StudentProgress.updated_at.desc(),
+                StudentProgress.student_progress_id.asc(),
+            ).all()
+
+            total_score = round(sum(float(row.score or 0) for row in progress_rows), 2)
+            average_score = round(total_score / len(progress_rows), 2) if progress_rows else 0.0
+
+            return {
+                "status": "ok",
+                "user_id": user.user_id,
+                "name": user.name,
+                "xp_points": int(profile.xp_points or 0),
+                "total_score": total_score,
+                "average_score": average_score,
+                "topics_covered": len(progress_rows),
+                "progress": [
+                    {
+                        "subject": row.subject,
+                        "topic": row.topic,
+                        "score": float(row.score or 0),
+                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    }
+                    for row in progress_rows
+                ],
+            }
+        finally:
+            db.close()
+
+    def _format_score_summary(self, summary: dict, response_mode: str) -> str:
+        status = (summary.get("status") or "").strip().lower()
+        if status == "forbidden":
+            return summary.get("message", "Score lookup is available only for student users.")
+        if status == "error":
+            return summary.get("message", "Could not fetch score right now.")
+
+        name = summary.get("name") or "Student"
+        xp_points = int(summary.get("xp_points") or 0)
+        total_score = float(summary.get("total_score") or 0.0)
+        average_score = float(summary.get("average_score") or 0.0)
+        topics_covered = int(summary.get("topics_covered") or 0)
+        progress = summary.get("progress") or []
+
+        if (response_mode or "").strip().lower() == "short":
+            return (
+                f"{name}'s score summary: XP {xp_points}, total score {total_score:.2f}, "
+                f"average score {average_score:.2f}, topics covered {topics_covered}."
+            )
+
+        lines = [
+            f"Score summary for {name}:",
+            f"1. XP Points: {xp_points}",
+            f"2. Total Score: {total_score:.2f}",
+            f"3. Average Score: {average_score:.2f}",
+            f"4. Topics Covered: {topics_covered}",
+        ]
+
+        if progress:
+            lines.append("5. Recent topic scores:")
+            for idx, row in enumerate(progress[:5], start=1):
+                subject = row.get("subject") or "General"
+                topic = row.get("topic") or "General Topic"
+                score = float(row.get("score") or 0.0)
+                lines.append(f"   - {idx}) {subject} / {topic}: {score:.2f}")
+        else:
+            lines.append("5. No topic-level score records are available yet.")
+
+        return "\n".join(lines)
+
     def _select_relevant_rag_answer(
         self,
         docs: list[Document],
@@ -1308,6 +1561,23 @@ class RagService:
             "question bank",
             "quiz questions",
             "practice questions",
+        )
+        return any(marker in text for marker in markers)
+
+    def _is_explanation_request(self, prompt: str) -> bool:
+        text = (prompt or "").strip().lower()
+        if not text:
+            return False
+
+        markers = (
+            "explain",
+            "in detail",
+            "detailed",
+            "deep dive",
+            "why",
+            "how does",
+            "how do",
+            "break this down",
         )
         return any(marker in text for marker in markers)
 
@@ -1577,6 +1847,72 @@ class RagService:
             return merged or None
         return None
 
+    def _llm_explanation_response(
+        self,
+        question: str,
+        role: str,
+        learner_level: str,
+    ) -> str | None:
+        llm = self._get_general_llm()
+        if llm is None:
+            return None
+
+        level = (learner_level or "beginner").strip().lower()
+        if level not in {"beginner", "intermediate", "advanced"}:
+            level = "beginner"
+
+        system_prompt = (
+            "You are an expert teaching assistant. "
+            "Give a deeply explained, well-structured answer that is easy to follow. "
+            "Use numbered sections with clear progression from fundamentals to applied understanding. "
+            "Do not use markdown tables."
+        )
+        user_prompt = (
+            f"Role: {role}\n"
+            f"Learner level: {level}\n"
+            "Output format:\n"
+            "1) Core idea\n"
+            "2) How it works step-by-step\n"
+            "3) Why it matters in practice\n"
+            "4) One worked example\n"
+            "5) Common mistakes and how to avoid them\n"
+            "6) Quick recap\n"
+            "Aim for around 220-320 words for beginner/intermediate and 180-260 words for advanced.\n"
+            f"Question: {question}"
+        )
+
+        try:
+            llm_client = llm
+            try:
+                llm_client = llm.bind(max_tokens=520)
+            except Exception:
+                llm_client = llm
+            result = llm_client.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
+        except Exception:
+            return None
+
+        content = getattr(result, "content", "")
+        if isinstance(content, str):
+            text = "\n".join(line.rstrip() for line in content.strip().splitlines() if line.strip())
+            return text or None
+        if isinstance(content, list):
+            merged = " ".join(str(part) for part in content).strip()
+            return merged or None
+        return None
+
+    def _build_explanation_fallback(self, question: str, role: str, learner_level: str) -> str:
+        clean_q = " ".join((question or "").split()).strip()
+        level = (learner_level or "beginner").strip().lower()
+        return (
+            f"Detailed explanation for {role} ({level}) on: {clean_q}\n"
+            "1. Core idea: define the concept in plain language and scope.\n"
+            "2. How it works: explain the mechanism in logical steps from input to output.\n"
+            "3. Why it matters: connect it to real-world use and trade-offs.\n"
+            "4. Worked example: walk through one concrete scenario with expected result.\n"
+            "5. Common mistakes: list likely errors and practical fixes.\n"
+            "6. Recap: summarize the key points and one follow-up question to self-check understanding."
+        )
+
     def _get_general_llm(self) -> ChatOpenAI | None:
         if self._general_llm is not None:
             return self._general_llm
@@ -1786,6 +2122,18 @@ class WebSearchInput(BaseModel):
     max_results: int = Field(default=5, ge=1, le=8)
 
 
+class UserScoreInput(BaseModel):
+    user_id: int = Field(ge=1)
+    subject: str | None = None
+    topic: str | None = None
+
+
+class ExplanationInput(BaseModel):
+    question: str = Field(min_length=1)
+    role: str = Field(default="student", pattern="^(student|teacher)$")
+    learner_level: str = Field(default="beginner")
+
+
 @tool(CONTENT_RETRIEVAL_TOOL, args_schema=ContentRetrievalInput)
 def content_retrieval(
     question: str,
@@ -1821,6 +2169,30 @@ def duckduckgo_search_tool(question: str, max_results: int = 5) -> str:
     )
 
 
+@tool(USER_SCORE_TOOL, args_schema=UserScoreInput)
+def user_score_lookup(user_id: int, subject: str | None = None, topic: str | None = None) -> str:
+    """Lookup student score summary for a user; non-student users are denied."""
+    summary = service._get_user_score_summary(user_id=user_id, subject=subject, topic=topic)
+    return service._format_score_summary(summary=summary, response_mode="step-by-step")
+
+
+@tool(EXPLANATION_TOOL, args_schema=ExplanationInput)
+def detailed_explanation(question: str, role: str = "student", learner_level: str = "beginner") -> str:
+    """Generate a longer, structured explanation for a concept or question."""
+    answer = service._llm_explanation_response(
+        question=question,
+        role=role,
+        learner_level=learner_level,
+    )
+    if answer:
+        return answer
+    return service._build_explanation_fallback(
+        question=question,
+        role=role,
+        learner_level=learner_level,
+    )
+
+
 def get_langchain_tools() -> list:
     """Return LangChain tools for agent/tool-calling orchestration."""
-    return [content_retrieval, duckduckgo_search_tool]
+    return [content_retrieval, duckduckgo_search_tool, user_score_lookup, detailed_explanation]

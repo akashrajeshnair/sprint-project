@@ -430,6 +430,8 @@ class ChatToolAskRequest(BaseModel):
     selected_file: str | None = None
     use_rag_context: bool = True
     use_web_search: bool = False
+    use_score_tool: bool = True
+    use_explanation_tool: bool = True
     top_k: int = Field(default=1, ge=1, le=8)
     persist_messages: bool = True
     create_new_session: bool = True
@@ -705,6 +707,8 @@ def chat_ask_with_rag_tool(payload: ChatToolAskRequest, db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    score_tool_enabled = bool(payload.use_score_tool and str(user.role).strip().lower() == "student")
+
     result = rag_service.answer_with_agent_loop(
         question=payload.question,
         role=payload.role,
@@ -713,6 +717,9 @@ def chat_ask_with_rag_tool(payload: ChatToolAskRequest, db: Session = Depends(ge
         selected_file=payload.selected_file,
         use_rag_context=payload.use_rag_context,
         use_web_search=payload.use_web_search,
+        use_score_tool=score_tool_enabled,
+        use_explanation_tool=payload.use_explanation_tool,
+        user_id=payload.user_id,
         top_k=payload.top_k,
         max_steps=2,
     )

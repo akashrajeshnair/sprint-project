@@ -697,12 +697,17 @@ with st.sidebar:
     if role == "teacher":
         use_rag_context = st.toggle("Use RAG context", value=True)
         use_web_search = st.toggle("Use web search (DuckDuckGo)", value=False)
+        use_explanation_tool = st.toggle("Use explanation tool", value=True)
+        use_score_tool = False
+        st.caption("Score tool is available only for students.")
         top_k = st.slider("Top K sources", min_value=1, max_value=8, value=3)
         response_mode = st.selectbox("Response mode", options=["step-by-step", "short"], index=0)
         learner_level = st.selectbox("Learner level", options=["beginner", "intermediate", "advanced"], index=0)
     else:
         use_rag_context = st.toggle("Use RAG context", value=True, key="student_use_rag_context")
         use_web_search = st.toggle("Use web search (DuckDuckGo)", value=False, key="student_use_web_search")
+        use_explanation_tool = st.toggle("Use explanation tool", value=True, key="student_use_explanation_tool")
+        use_score_tool = st.toggle("Use score tool", value=True, key="student_use_score_tool")
         top_k = 3
         response_mode = "step-by-step"
         learner_level = "beginner"
@@ -755,6 +760,8 @@ def _submit_chat(
             "selected_file": None,
             "use_rag_context": False if force_non_rag else use_rag_context,
             "use_web_search": use_web_search,
+            "use_score_tool": use_score_tool,
+            "use_explanation_tool": use_explanation_tool,
             "top_k": top_k,
             "persist_messages": True,
             "create_new_session": True,
