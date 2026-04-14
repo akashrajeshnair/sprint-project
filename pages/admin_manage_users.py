@@ -7,6 +7,18 @@ if "role" not in st.session_state or st.session_state.role != "admin":
 
 st.set_page_config(page_title="Manage Users", layout="wide")
 
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, #2a221a 0%, #1b140f 50%, #120d09 100%);
+        color: #f0e9e3;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 API_BASE_URL = "http://127.0.0.1:8000"
 
 st.title("👥 Manage All Users")

@@ -7,6 +7,23 @@ if "role" not in st.session_state or st.session_state.role != "teacher":
 
 st.set_page_config(page_title="Teacher Profile", layout="centered")
 
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, #1a2a22 0%, #101b16 48%, #0b120f 100%);
+        color: #e8f1ea;
+    }
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.45rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 API_BASE_URL = "http://127.0.0.1:8000"
 
 st.title("👤 Teacher Profile")
@@ -33,12 +50,18 @@ try:
     if response.status_code == 200:
         user = response.json()
 
-        st.subheader("Teacher Details")
-        st.write(f"**User ID:** {user.get('user_id', 'N/A')}")
-        st.write(f"**Name:** {user.get('name', 'N/A')}")
-        st.write(f"**Email:** {user.get('email', 'N/A')}")
-        st.write(f"**Role:** {user.get('role', 'N/A')}")
-        st.write(f"**Subject:** {user.get('subject', 'N/A')}")
+        st.markdown("<div class='section-title'>Teacher Details</div>", unsafe_allow_html=True)
+        d1, d2 = st.columns(2)
+        with d1:
+            with st.container(border=True):
+                st.write(f"**User ID:** {user.get('user_id', 'N/A')}")
+                st.write(f"**Name:** {user.get('name', 'N/A')}")
+                st.write(f"**Email:** {user.get('email', 'N/A')}")
+        with d2:
+            with st.container(border=True):
+                st.write(f"**Role:** {user.get('role', 'N/A')}")
+                st.write(f"**Subject:** {user.get('subject', 'N/A')}")
+                st.metric("Active Role", "Teacher")
     else:
         try:
             detail = response.json().get("detail", "Failed to fetch profile details")

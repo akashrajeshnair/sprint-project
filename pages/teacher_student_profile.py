@@ -11,6 +11,18 @@ if "selected_student_user_id" not in st.session_state:
 
 st.set_page_config(page_title="Student Profile", layout="wide")
 
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, #1a2a22 0%, #101b16 48%, #0b120f 100%);
+        color: #e8f1ea;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 API_BASE_URL = "http://127.0.0.1:8000"
 student_user_id = st.session_state.selected_student_user_id
 
