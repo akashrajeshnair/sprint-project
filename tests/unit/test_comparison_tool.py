@@ -20,7 +20,8 @@ from backend.services.rag import CONTENT_RETRIEVAL_TOOL, RagService
 
 
 @pytest.fixture
-def rag():
+def rag(monkeypatch):
+    monkeypatch.setattr(RagService, "_create_embeddings", lambda self: None)
     return RagService()
 
 
@@ -32,6 +33,16 @@ def test_comparison_prefix_detected(rag):
 
 def test_non_comparison_prefix_uses_default_splitter(rag):
     assert rag._should_use_section_chunking(pdf_path=__import__("pathlib").Path("notes_dbms.pdf"), pages=[]) is False
+
+
+def test_comparison_prefix_case_insensitive(rag):
+    assert (
+        rag._should_use_section_chunking(
+            pdf_path=__import__("pathlib").Path("Comparison_Java_Python.pdf"),
+            pages=[],
+        )
+        is True
+    )
 
 
 # test section extraction
@@ -49,6 +60,14 @@ def test_extract_numbered_sections_success(rag):
 def test_extract_numbered_sections_none(rag):
     sections = rag._extract_numbered_sections("Java and Python are popular languages.")
     assert sections == []
+
+
+def test_extract_numbered_sections_trims_title_and_colon(rag):
+    text = "1.   Performance:  \nFast vs slow.\n2. Syntax:\nVerbose vs concise."
+    sections = rag._extract_numbered_sections(text)
+
+    assert sections[0][1] == "Performance"
+    assert sections[1][1] == "Syntax"
 
 # test section chunk metadata creation
 
@@ -75,6 +94,46 @@ def test_build_section_chunks_sets_comparison_metadata(rag):
     assert metadata["section_title"] == "Performance"
     assert metadata["chunk_type"] == "criterion_comparison"
     assert metadata["comparison_topics"] == "java,python"
+
+
+def test_build_section_chunks_sets_section_type_when_not_java_python(rag):
+    page = Document(
+        page_content=(
+            "1. Overview\n"
+            "C++ is compiled and Rust focuses on memory safety."
+        ),
+        metadata={"page": 1},
+    )
+
+    chunks = rag._build_section_chunks(
+        pdf_path=__import__("pathlib").Path("comparison_cpp_rust.pdf"),
+        role="student",
+        pages=[page],
+    )
+
+    assert len(chunks) == 1
+    assert chunks[0].metadata["chunk_type"] == "section"
+    assert chunks[0].metadata["comparison_topics"] == ""
+
+
+def test_build_section_chunks_multiple_sections(rag):
+    page = Document(
+        page_content=(
+            "1. Syntax\nJava is verbose. Python is concise.\n"
+            "2. Performance\nJava is often faster."
+        ),
+        metadata={"page": 1},
+    )
+
+    chunks = rag._build_section_chunks(
+        pdf_path=__import__("pathlib").Path("comparison_javapython.pdf"),
+        role="student",
+        pages=[page],
+    )
+
+    assert len(chunks) == 2
+    assert chunks[0].metadata["section_number"] == "1"
+    assert chunks[1].metadata["section_number"] == "2"
 
 
 # check fallback to recursive chunking when no sections found
@@ -117,6 +176,26 @@ def test_chunk_pdf_documents_uses_section_builder_for_comparison(monkeypatch, ra
     )
 
     assert out == expected
+
+
+def test_chunk_pdf_documents_uses_recursive_splitter_for_non_comparison(monkeypatch, rag):
+    page = Document(page_content="plain text", metadata={"page": 1, "source": "notes.pdf", "role": "student"})
+
+    class DummySplitter:
+        @staticmethod
+        def split_documents(docs):
+            return [Document(page_content="chunk", metadata={"page": 1})]
+
+    monkeypatch.setattr(rag, "_splitter", DummySplitter())
+
+    out = rag._chunk_pdf_documents(
+        pdf_path=__import__("pathlib").Path("notes_dbms.pdf"),
+        role="student",
+        enriched_pages=[page],
+    )
+
+    assert len(out) == 1
+    assert out[0].page_content == "chunk"
 
 
 # comparsison tool full flow

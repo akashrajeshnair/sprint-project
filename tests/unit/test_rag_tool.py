@@ -290,3 +290,109 @@ def test_question_bank_request_sets_selected_file(monkeypatch):
     assert result["selected_file"] == "question_bank.pdf"
     assert captured["selected_file"] == "question_bank.pdf"
     assert "question bank questions" in captured["question"].lower()
+
+
+def test_empty_question_returns_prompt(monkeypatch):
+    service = _make_service(monkeypatch)
+
+    result = service.answer_with_agent_loop(
+        question="   ",
+        role="student",
+        learner_level="beginner",
+        response_mode="short",
+        use_rag_context=True,
+        use_web_search=False,
+        use_score_tool=False,
+        use_explanation_tool=False,
+        user_id=1,
+    )
+
+    assert result["answer"].lower().startswith("please ask")
+    assert result["context_used"] is False
+    assert result["tool_calls_used"] == []
+
+
+def test_invalid_role_defaults_to_student(monkeypatch):
+    service = _make_service(monkeypatch)
+
+    captured: dict = {}
+
+    def _run_tool(self, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(RagService, "_run_tool", _run_tool)
+    monkeypatch.setattr(RagService, "_llm_general_response", lambda self, **kwargs: "General answer")
+
+    service.answer_with_agent_loop(
+        question="Explain DBMS normalization",
+        role="admin",
+        learner_level="beginner",
+        response_mode="short",
+        use_rag_context=True,
+        use_web_search=False,
+        use_score_tool=False,
+        use_explanation_tool=False,
+        user_id=1,
+        max_steps=1,
+    )
+
+    assert captured["role"] == "student"
+
+
+def test_rag_context_falls_back_to_context_text_when_llm_none(monkeypatch):
+    service = _make_service(monkeypatch)
+
+    long_text = "A" * 1300
+    retrieved_docs = [
+        Document(page_content=long_text, metadata={"source": "dbms_notes.pdf", "page": 1}),
+    ]
+
+    monkeypatch.setattr(RagService, "_run_tool", lambda self, **kwargs: retrieved_docs)
+    monkeypatch.setattr(RagService, "_llm_general_response", lambda self, **kwargs: None)
+
+    result = service.answer_with_agent_loop(
+        question="Explain DBMS normalization",
+        role="student",
+        learner_level="beginner",
+        response_mode="short",
+        use_rag_context=True,
+        use_web_search=False,
+        use_score_tool=False,
+        use_explanation_tool=False,
+        user_id=1,
+        max_steps=1,
+    )
+
+    assert result["context_used"] is True
+    assert len(result["answer"]) == 1200
+    assert set(result["answer"]) == {"A"}
+
+
+def test_rag_deduplication_affects_tool_result_count(monkeypatch):
+    service = _make_service(monkeypatch)
+
+    docs = [
+        Document(page_content="Same", metadata={"source": "x.pdf", "page": 1}),
+        Document(page_content="Same", metadata={"source": "x.pdf", "page": 1}),
+    ]
+
+    monkeypatch.setattr(RagService, "_run_tool", lambda self, **kwargs: docs)
+    monkeypatch.setattr(RagService, "_deduplicate_docs", lambda self, values: values[:1])
+    monkeypatch.setattr(RagService, "_llm_general_response", lambda self, **kwargs: "Answer")
+
+    result = service.answer_with_agent_loop(
+        question="Explain DBMS normalization",
+        role="student",
+        learner_level="beginner",
+        response_mode="short",
+        use_rag_context=True,
+        use_web_search=False,
+        use_score_tool=False,
+        use_explanation_tool=False,
+        user_id=1,
+        max_steps=1,
+    )
+
+    assert result["tool_calls_used"][0]["name"] == CONTENT_RETRIEVAL_TOOL
+    assert result["tool_calls_used"][0]["result_count"] == 1

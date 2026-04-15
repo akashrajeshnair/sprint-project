@@ -29,8 +29,9 @@ def test_basic_explanation(mock_llm):
 
 
 # ✅ 2. Explanation fallback when LLM fails
-def test_explanation_fallback():
+def test_explanation_fallback(monkeypatch):
     service._general_llm = None  # simulate failure
+    monkeypatch.setattr(service, "_get_general_llm", lambda: None)
 
     result = detailed_explanation.invoke({
         "question": "Explain AI",
@@ -39,7 +40,7 @@ def test_explanation_fallback():
     })
 
     assert "Detailed explanation" in result
-    assert "Core idea" in result
+    assert "1. Core idea" in result
 
 
 # ✅ 3. Advanced level explanation

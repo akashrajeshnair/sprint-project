@@ -16,7 +16,7 @@ This project has:
 From project root:
 
 ```powershell
-cd c:\Users\Kirtan\Desktop\sprint-project
+cd path\to\sprint-project
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
@@ -50,8 +50,8 @@ If your network blocks or throttles `huggingface.co:443`, set `HF_LOCAL_FILES_ON
 Open Terminal 1:
 
 ```powershell
-cd c:\Users\Kirtan\Desktop\sprint-project\backend
-c:/Users/Kirtan/Desktop/sprint-project/.venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+cd backend
+.\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Check server:
@@ -63,8 +63,8 @@ Check server:
 Open Terminal 2:
 
 ```powershell
-cd c:\Users\Kirtan\Desktop\sprint-project
-c:/Users/Kirtan/Desktop/sprint-project/.venv/Scripts/python.exe -m streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+cd path\to\sprint-project
+.\.venv\Scripts\python.exe -m streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0
 ```
 
 Open:
@@ -87,7 +87,7 @@ You are likely running global Python instead of project venv.
 Use:
 
 ```powershell
-c:/Users/Kirtan/Desktop/sprint-project/.venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+.\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ### `FastAPI server is not running` on login
@@ -104,6 +104,62 @@ Run backend with host `127.0.0.1` instead.
 
 - Restart backend (`--reload` usually handles code changes)
 - If changing `.env`, always restart backend and frontend.
+
+## 8) Run tests
+
+All tests live under `tests/unit/` and are run with `pytest`.
+
+Before running tests (from project root):
+
+```powershell
+cd path\to\sprint-project
+./.venv/Scripts/Activate.ps1
+```
+
+### Run all tests (standard pytest discovery)
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Common options:
+
+```powershell
+# quiet
+.\.venv\Scripts\python.exe -m pytest -q
+
+# stop on first failure
+.\.venv\Scripts\python.exe -m pytest -x
+```
+
+### Run all unit test files in a fixed order (custom runner)
+
+This repo includes a small runner that executes each `tests/unit/test_*.py` file sequentially and prints a PASS/FAIL summary per file:
+
+```powershell
+.\.venv\Scripts\python.exe tests/run_all_tests.py -q
+```
+
+You can forward any pytest flags:
+
+```powershell
+.\.venv\Scripts\python.exe tests/run_all_tests.py -vv
+```
+
+### Run tests individually
+
+Run a single test file:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests/unit/test_rag_tool.py
+.\.venv\Scripts\python.exe -m pytest -q tests/unit/test_web_search_tool.py
+```
+
+Run a single test function (use `::`):
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests/unit/test_web_search_tool.py::test_run_web_search_handles_exception
+```
 
 ## Dump Database
 
