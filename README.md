@@ -40,7 +40,10 @@ Optional model settings:
 ```env
 GROQ_MODEL=llama-3.1-8b-instant
 EMBEDDING_MODEL=all-MiniLM-L6-v2
+HF_LOCAL_FILES_ONLY=false
 ```
+
+If your network blocks or throttles `huggingface.co:443`, set `HF_LOCAL_FILES_ONLY=true` after the model is cached once to force offline loading.
 
 ## 4) Run backend (FastAPI)
 

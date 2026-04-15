@@ -800,9 +800,15 @@ import importlib
 from pathlib import Path
 from typing import Any
 
+# Configure Hugging Face hub timeouts early so dependent imports pick them up.
+HF_ETAG_TIMEOUT_SECONDS = "30"
+HF_DOWNLOAD_TIMEOUT_SECONDS = "60"
+os.environ.setdefault("HF_HUB_ETAG_TIMEOUT", HF_ETAG_TIMEOUT_SECONDS)
+os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", HF_DOWNLOAD_TIMEOUT_SECONDS)
+
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -825,7 +831,14 @@ PROJECT_ENV_PATH = BASE_DIR.parent / ".env"
 
 load_dotenv(PROJECT_ENV_PATH)
 
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+HF_CACHE_DIR = BASE_DIR / ".cache" / "huggingface"
+HF_LOCAL_FILES_ONLY = os.getenv("HF_LOCAL_FILES_ONLY", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 DEFAULT_TOP_K = 8
 CONTENT_RETRIEVAL_TOOL = "content_retrieval"
 WEB_SEARCH_TOOL = "duckduckgo_search"
@@ -849,10 +862,19 @@ except (ModuleNotFoundError, ImportError):
     from backend.models.student_progress import StudentProgress
     from backend.models.users import User
 
+try:
+    from huggingface_hub import constants as hf_constants
+
+    hf_constants.HF_HUB_ETAG_TIMEOUT = int(os.environ["HF_HUB_ETAG_TIMEOUT"])
+    hf_constants.HF_HUB_DOWNLOAD_TIMEOUT = int(os.environ["HF_HUB_DOWNLOAD_TIMEOUT"])
+except Exception:
+    # Keep running even if huggingface_hub internals change.
+    pass
+
 
 class RagService:
     def __init__(self) -> None:
-        self._embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+        self._embeddings = self._create_embeddings()
         self._general_llm: ChatOpenAI | None = None
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
@@ -863,6 +885,40 @@ class RagService:
         self._prepared = False
         self._vectorstores: dict[str, Chroma | None] = {"student": None, "teacher": None}
         self._indexed_files_by_role: dict[str, list[dict]] = {"student": [], "teacher": []}
+
+    def _create_embeddings(self) -> HuggingFaceEmbeddings:
+        # Increase Hugging Face hub timeouts for slower networks.
+        os.environ.setdefault("HF_HUB_ETAG_TIMEOUT", HF_ETAG_TIMEOUT_SECONDS)
+        os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", HF_DOWNLOAD_TIMEOUT_SECONDS)
+
+        model_kwargs: dict[str, Any] = {}
+        if HF_LOCAL_FILES_ONLY:
+            model_kwargs["local_files_only"] = True
+
+        common_kwargs = {
+            "model_name": EMBEDDING_MODEL,
+            "cache_folder": str(HF_CACHE_DIR),
+            "model_kwargs": model_kwargs,
+        }
+
+        try:
+            return HuggingFaceEmbeddings(**common_kwargs)
+        except Exception as exc:
+            message = str(exc).lower()
+            is_timeout_like = "timed out" in message or "huggingface.co" in message
+            if not is_timeout_like:
+                raise
+
+            try:
+                return HuggingFaceEmbeddings(
+                    **common_kwargs,
+                    model_kwargs={"local_files_only": True},
+                )
+            except Exception as fallback_exc:
+                raise RuntimeError(
+                    "Failed to load embedding model from Hugging Face and local cache. "
+                    "Check internet connectivity, or pre-download the model into the local cache."
+                ) from fallback_exc
 
     def prepare(self) -> None:
         self._prepare_dirs()
