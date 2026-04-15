@@ -4,9 +4,9 @@ from sqlalchemy import DateTime, ForeignKey, Integer, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 try:
-	from database import Base
-except ModuleNotFoundError:
 	from backend.database import Base
+except ModuleNotFoundError:
+	from database import Base
 
 
 class Session(Base):

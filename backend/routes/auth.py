@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-
-from database import SessionLocal
-from models.users import User
-from schemas.auth import LoginRequest, LoginResponse
+from backend.models.users import User
+from backend.schemas.auth import LoginRequest, LoginResponse
+from backend.database import get_db
+from backend.database import SessionLocal
 
 router = APIRouter()
 

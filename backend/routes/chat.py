@@ -396,15 +396,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 try:
-    from database import get_db
-    from models.messages import Message
-    from models.sessions import Session as ChatSession
-    from models.student_details import StudentProfile
-    from models.student_progress import StudentProgress
-    from models.users import User
-    from schemas.messages import MessageCreate, MessageRead
-    from schemas.sessions import SessionCreate, SessionRead, SessionUpdate
-    from services.rag import CONTENT_RETRIEVAL_TOOL, service as rag_service
+    from backend.database import get_db
+    from backend.models.messages import Message
+    from backend.models.sessions import Session as ChatSession
+    from backend.models.student_details import StudentProfile
+    from backend.models.student_progress import StudentProgress
+    from backend.models.users import User
+    from backend.schemas.messages import MessageCreate, MessageRead
+    from backend.schemas.sessions import SessionCreate, SessionRead, SessionUpdate
+    from backend.services.rag import CONTENT_RETRIEVAL_TOOL, service as rag_service
 except ModuleNotFoundError:
     from backend.database import get_db
     from backend.models.messages import Message

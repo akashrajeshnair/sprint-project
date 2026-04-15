@@ -852,10 +852,10 @@ SUPPORTED_DOC_SUFFIXES = {".pdf"}
 ROLE_MAP = {"student": "students", "teacher": "teachers"}
 
 try:
-    from database import SessionLocal
-    from models.student_details import StudentProfile
-    from models.student_progress import StudentProgress
-    from models.users import User
+    from backend.database import SessionLocal
+    from backend.models.student_details import StudentProfile
+    from backend.models.student_progress import StudentProgress
+    from backend.models.users import User
 except (ModuleNotFoundError, ImportError):
     from backend.database import SessionLocal
     from backend.models.student_details import StudentProfile

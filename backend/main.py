@@ -80,7 +80,8 @@
 # app.include_router(users_router, tags=["Users"])
 
 from __future__ import annotations
-
+from dotenv import load_dotenv
+load_dotenv("../.env")
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -93,13 +94,15 @@ import uvicorn
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 try:
-    from services.rag import service as rag_service
-    from models import messages as _messages_model  # noqa: F401
-    from models import sessions as _sessions_model  # noqa: F401
-    from models import users as _users_model  # noqa: F401
-    from routes.chat import router as chat_router
-    from routes.auth import router as auth_router
-    from routes.users import router as users_router
+    from backend.services.rag import service as rag_service
+
+    from backend.models import messages as _messages_model  # noqa: F401
+    from backend.models import sessions as _sessions_model  # noqa: F401
+    from backend.models import users as _users_model        # noqa: F401
+
+    from backend.routes.chat import router as chat_router
+    from backend.routes.auth import router as auth_router
+    from backend.routes.users import router as users_router
 except ModuleNotFoundError as exc:
     if exc.name not in {"routes", "models", "database", "schemas", "services"}:
         raise

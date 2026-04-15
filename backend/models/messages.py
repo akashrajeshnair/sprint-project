@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 try:
-	from database import Base
+	from backend.database import Base
 except ModuleNotFoundError:
 	from database import Base
 
