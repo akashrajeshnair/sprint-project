@@ -816,6 +816,8 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
+from langsmith import traceable
+
 
 try:
     _ddgs_module = importlib.import_module("duckduckgo_search")
@@ -984,6 +986,7 @@ class RagService:
             max_steps=2,
         )
 
+    @traceable(name="rag.answer_with_agent_loop", run_type="chain")
     def answer_with_agent_loop(
         self,
         question: str,
@@ -1277,9 +1280,29 @@ class RagService:
             "agent_loop_used": True,
         }
 
+    @traceable(name="rag.duckduckgo_search", run_type="tool")
     def _run_web_search(self, question: str, max_results: int = 5) -> list[dict[str, str]]:
+        def _diagnostic(reason: str, detail: str) -> list[dict[str, str]]:
+            clean_reason = " ".join((reason or "unknown").split()).strip() or "unknown"
+            clean_detail = " ".join((detail or "").split()).strip()
+            if len(clean_detail) > 240:
+                clean_detail = clean_detail[:237].rstrip() + "..."
+            snippet = f"reason={clean_reason}"
+            if clean_detail:
+                snippet = f"{snippet}; detail={clean_detail}"
+            return [
+                {
+                    "title": "DuckDuckGo diagnostic",
+                    "snippet": snippet,
+                    "url": f"internal://duckduckgo/{clean_reason}",
+                }
+            ]
+
         if DDGS is None:
-            return []
+            return _diagnostic(
+                reason="dependency_unavailable",
+                detail="duckduckgo_search import failed in current backend runtime.",
+            )
 
         query = " ".join((question or "").split()).strip()
         if not query:
@@ -1289,8 +1312,8 @@ class RagService:
         try:
             with DDGS() as ddgs:
                 raw_results = list(ddgs.text(query, max_results=limit))
-        except Exception:
-            return []
+        except Exception as exc:
+            return _diagnostic(reason="query_failed", detail=f"{type(exc).__name__}: {exc}")
 
         seen: set[str] = set()
         normalized: list[dict[str, str]] = []
@@ -1414,6 +1437,7 @@ class RagService:
 
         return subject, topic
 
+    @traceable(name="rag.user_score_lookup", run_type="tool")
     def _get_user_score_summary(
         self,
         user_id: int | None,
@@ -1722,6 +1746,7 @@ class RagService:
             unique.append(doc)
         return unique
 
+    @traceable(name="rag.content_retrieval", run_type="tool")
     def _run_tool(
         self,
         tool_name: str,
@@ -2191,6 +2216,7 @@ class ExplanationInput(BaseModel):
 
 
 @tool(CONTENT_RETRIEVAL_TOOL, args_schema=ContentRetrievalInput)
+@traceable(name="tool.content_retrieval", run_type="tool")
 def content_retrieval(
     question: str,
     role: str = "student",
@@ -2213,6 +2239,7 @@ def content_retrieval(
 
 
 @tool(WEB_SEARCH_TOOL, args_schema=WebSearchInput)
+@traceable(name="tool.duckduckgo_search", run_type="tool")
 def duckduckgo_search_tool(question: str, max_results: int = 5) -> str:
     """Run DuckDuckGo web search and return concise snippets."""
     results = service._run_web_search(question=question, max_results=max_results)
@@ -2226,6 +2253,7 @@ def duckduckgo_search_tool(question: str, max_results: int = 5) -> str:
 
 
 @tool(USER_SCORE_TOOL, args_schema=UserScoreInput)
+@traceable(name="tool.user_score_lookup", run_type="tool")
 def user_score_lookup(user_id: int, subject: str | None = None, topic: str | None = None) -> str:
     """Lookup student score summary for a user; non-student users are denied."""
     summary = service._get_user_score_summary(user_id=user_id, subject=subject, topic=topic)
@@ -2233,6 +2261,7 @@ def user_score_lookup(user_id: int, subject: str | None = None, topic: str | Non
 
 
 @tool(EXPLANATION_TOOL, args_schema=ExplanationInput)
+@traceable(name="tool.detailed_explanation", run_type="tool")
 def detailed_explanation(question: str, role: str = "student", learner_level: str = "beginner") -> str:
     """Generate a longer, structured explanation for a concept or question."""
     answer = service._llm_explanation_response(
