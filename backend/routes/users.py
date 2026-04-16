@@ -600,10 +600,10 @@ from pydantic import BaseModel, EmailStr
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-from models.users import User
-from models.student_details import StudentProfile
-from models.student_progress import StudentProgress
+from backend.database import SessionLocal
+from backend.models.users import User
+from backend.models.student_details import StudentProfile
+from backend.models.student_progress import StudentProgress
 
 router = APIRouter()
 

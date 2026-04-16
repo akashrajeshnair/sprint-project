@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Text, Float, DateTime
 
-from database import Base
+from backend.database import Base
 
 
 class StudentProgress(Base):

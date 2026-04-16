@@ -28,7 +28,7 @@
 
 from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
-from database import Base
+from backend.database import Base
 
 
 class StudentProfile(Base):
