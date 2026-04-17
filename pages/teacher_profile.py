@@ -25,7 +25,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 st.title("👤 Teacher Profile")
 
@@ -70,7 +70,12 @@ try:
             detail = "Failed to fetch profile details"
         st.error(detail)
 
-except requests.exceptions.ConnectionError:
-    st.error("FastAPI server is not running.")
+except requests.exceptions.ConnectionError as e:
+    st.error(
+        f"Cannot connect to backend at {API_BASE_URL}. "
+        f"Connection error: {e}"
+    )
+except requests.exceptions.Timeout:
+    st.error(f"Backend timeout when calling {API_BASE_URL}.")
 except Exception as e:
     st.error(str(e))
