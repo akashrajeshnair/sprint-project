@@ -1,0 +1,34 @@
+services:
+  sprint-backend:
+    container_name: sprint-backend
+    image: akashrajeshnair/sprint-backend:latest
+    env_file:
+      - .env.docker
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    networks:
+      - sprint-net
+
+  sprint-frontend:
+    container_name: sprint-frontend
+    image: akashrajeshnair/sprint-frontend:latest
+    env_file:
+      - .env.docker
+    environment:
+      STREAMLIT_PORT: 8501
+      API_BASE_URL: http://sprint-backend:8000
+    depends_on:
+      - sprint-backend
+    ports:
+      - "8501:8501"
+    networks:
+      - sprint-net
+
+networks:
+  sprint-net:
+    driver: bridge
