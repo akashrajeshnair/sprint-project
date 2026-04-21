@@ -820,10 +820,14 @@ from langsmith import traceable
 
 
 try:
-    _ddgs_module = importlib.import_module("duckduckgo_search")
+    _ddgs_module = importlib.import_module("ddgs")
     DDGS: Any | None = getattr(_ddgs_module, "DDGS", None)
-except Exception:  # pragma: no cover - optional dependency guard
-    DDGS = None
+except Exception:
+    try:
+        _ddgs_module = importlib.import_module("duckduckgo_search")
+        DDGS = getattr(_ddgs_module, "DDGS", None)
+    except Exception:  # pragma: no cover - optional dependency guard
+        DDGS = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -1323,11 +1327,22 @@ class RagService:
             title = " ".join(str(row.get("title", "")).split()).strip()
             snippet = " ".join(str(row.get("body", "")).split()).strip()
             url = " ".join(str(row.get("href", "")).split()).strip()
-            key = f"{title}|{url}".lower()
-            if not key.strip("|") or key in seen:
+            best_ref = (url or title or snippet).strip()
+            if not best_ref:
+                continue
+            key = f"{title}|{url}|{snippet[:80]}".lower()
+            if key in seen:
                 continue
             seen.add(key)
             normalized.append({"title": title, "snippet": snippet, "url": url})
+        if not normalized:
+            return _diagnostic(
+                reason="empty_results",
+                detail=(
+                    "provider returned no usable rows; query may be blocked/rate-limited "
+                    "or results were empty"
+                ),
+            )
         return normalized
 
     def _web_sources(self, web_results: list[dict[str, str]]) -> list[dict]:

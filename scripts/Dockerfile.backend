@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY scripts/requirements.backend.txt ./requirements.backend.txt
 RUN pip install -r requirements.backend.txt --no-cache-dir
+RUN pip install ddgs
 
 COPY . .
 COPY .env.docker ./.env
