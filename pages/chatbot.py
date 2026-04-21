@@ -430,7 +430,7 @@ import streamlit as st
 st.set_page_config(page_title="Chatbot", page_icon="💬", layout="wide")
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
-ALLOWED_ROLES = {"student", "teacher"}
+ALLOWED_ROLES = {"student", "teacher", "admin"}
 
 
 def _candidate_api_bases() -> list[str]:
@@ -604,9 +604,10 @@ def _format_session_label(session_row: dict) -> str:
 
 role = (st.session_state.get("role") or "").strip().lower()
 user_id = st.session_state.get("user_id")
+is_teacher_like = role in {"teacher", "admin"}
 
 if role not in ALLOWED_ROLES or not user_id:
-    st.warning("Please login as student or teacher to use chatbot.")
+    st.warning("Please login as student, teacher, or admin to use chatbot.")
     st.switch_page("streamlit_app.py")
 
 if st.session_state.get("chat_owner_role") and st.session_state.get("chat_owner_role") != role:
@@ -633,6 +634,8 @@ with nav_col1:
     if st.button("⬅ Back to Dashboard", use_container_width=True):
         if role == "student":
             st.switch_page("pages/student_dashboard.py")
+        elif role == "admin":
+            st.switch_page("pages/admin_dashboard.py")
         else:
             st.switch_page("pages/teacher_dashboard.py")
 with nav_col2:
@@ -694,7 +697,7 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Chat Settings")
-    if role == "teacher":
+    if is_teacher_like:
         use_rag_context = st.toggle("Use RAG context", value=True)
         use_web_search = st.toggle("Use web search (DuckDuckGo)", value=False)
         use_explanation_tool = st.toggle("Use explanation tool", value=True)
@@ -717,7 +720,7 @@ for msg in st.session_state.chat_messages:
     with st.chat_message(msg["role"]):
         rendered_content = (msg["content"] or "").replace("\n", "  \n")
         st.markdown(rendered_content)
-        if role == "teacher" and msg.get("sources"):
+        if is_teacher_like and msg.get("sources"):
             with st.expander("Sources"):
                 for idx, src in enumerate(msg["sources"], start=1):
                     source_name = src.get("source", "unknown")
@@ -754,7 +757,7 @@ def _submit_chat(
             "user_id": int(user_id),
             "session_id": None,
             "question": question,
-            "role": role,
+            "role": "teacher" if is_teacher_like else role,
             "learner_level": learner_level,
             "response_mode": response_mode,
             "selected_file": None,

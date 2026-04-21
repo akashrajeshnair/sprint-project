@@ -424,7 +424,7 @@ class ChatToolAskRequest(BaseModel):
     user_id: int
     session_id: int | None = None
     question: str = Field(min_length=1)
-    role: str = Field(default="student", pattern="^(student|teacher)$")
+    role: str = Field(default="student", pattern="^(student|teacher|admin)$")
     learner_level: str = Field(default="beginner")
     response_mode: str = Field(default="step-by-step")
     selected_file: str | None = None
@@ -707,11 +707,14 @@ def chat_ask_with_rag_tool(payload: ChatToolAskRequest, db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    user_role = str(user.role or "student").strip().lower()
+    effective_role = "teacher" if user_role in {"teacher", "admin"} else "student"
+
     score_tool_enabled = bool(payload.use_score_tool and str(user.role).strip().lower() == "student")
 
     result = rag_service.answer_with_agent_loop(
         question=payload.question,
-        role=payload.role,
+        role=effective_role,
         learner_level=payload.learner_level,
         response_mode=payload.response_mode,
         selected_file=payload.selected_file,
