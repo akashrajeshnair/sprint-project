@@ -817,17 +817,7 @@ from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
 from langsmith import traceable
-
-
-try:
-    _ddgs_module = importlib.import_module("ddgs")
-    DDGS: Any | None = getattr(_ddgs_module, "DDGS", None)
-except Exception:
-    try:
-        _ddgs_module = importlib.import_module("duckduckgo_search")
-        DDGS = getattr(_ddgs_module, "DDGS", None)
-    except Exception:  # pragma: no cover - optional dependency guard
-        DDGS = None
+import ddgs
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
